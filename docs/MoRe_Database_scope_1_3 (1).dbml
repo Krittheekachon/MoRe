@@ -1,0 +1,301 @@
+// MoRe / ฟื้นฟูผู้ป่วยโรคหลอดเลือดสมอง — แบบฐานข้อมูล PostgreSQL สำหรับ dbdiagram.io
+// ผู้ป่วยหนึ่งคนมีรายการฝึกหนึ่งชุดต่อวันตามเวลาไทย; รายงานนับเฉพาะเซตที่กดบันทึก
+// อิงหัวข้อ 1.3 ของรายงานฉบับ 1 ตุลาคม 2569; เก็บผลรายรอบ ไม่เก็บข้อมูลรายเฟรมหรือวิดีโอการฝึก
+
+Table users {
+  id int [pk, increment]
+  role varchar(20) [not null, note: 'ประเภทผู้ใช้: patient=ผู้ป่วย, doctor=แพทย์, therapist=นักกายภาพ, admin=ผู้ดูแล']
+  login_name varchar(30) [unique, note: 'ชื่อเข้าสู่ระบบของแพทย์/ผู้ดูแล; ผู้ป่วยเว้นช่องนี้และเข้าสู่ระบบด้วยเลขบัตรประชาชนผ่าน national_id_lookup']
+  password_hash varchar(128) [not null, note: 'ค่าแฮชรหัสผ่าน เช่น Argon2id; ไม่เก็บรหัสผ่านจริง']
+  password_change_required boolean [not null, default: false]
+  display_name varchar(100) [not null]
+  is_active boolean [not null, default: true, note: 'เปิดหรือปิดการใช้งานบัญชี']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Note: 'ระยะแรกใช้บัญชีผู้ดูแลหนึ่งบัญชีให้แพทย์เข้าใช้งาน; รองรับบัญชีรายคนในอนาคต'
+}
+
+Table patient_profiles {
+  patient_id int [pk, ref: > users.id]
+  hn varchar(40) [unique, note: 'ผู้ป่วยกรอกจากบัตรโรงพยาบาล; ตรวจสอบและล็อกไม่ให้ผู้ป่วยแก้เองหลังลงทะเบียน; สมมติใช้โรงพยาบาลเดียว']
+  national_id_lookup varchar(64) [not null, unique, note: 'ค่า HMAC-SHA256 ของเลขบัตรประชาชน ใช้ค้นหาแบบตรงตัว; เก็บกุญแจแยกจากฐานข้อมูล']
+  national_id_encrypted text [not null, note: 'เลขบัตรประชาชนที่เข้ารหัส; เก็บกุญแจถอดรหัสแยกจากฐานข้อมูล']
+  full_name varchar(200) [not null]
+  date_of_birth date
+  phone varchar(20)
+  sex varchar(20)
+  primary_doctor_name varchar(150) [note: 'ชื่อแพทย์ประจำตัวตามที่ผู้ป่วยกรอก; ไม่ผูกกับบัญชี admin ที่ใช้ร่วมกัน']
+  stroke_type varchar(100)
+  stroke_diagnosed_on date
+  other_conditions text
+  medical_notes text
+  updated_at timestamptz [not null]
+  Note: 'คำนวณอายุจากวันเกิด; ไม่บันทึกเลขบัตรประชาชนลง log และไม่เก็บเลขสี่ตัวท้ายแยก'
+}
+
+Table exercise_modules {
+  id int [pk, increment]
+  module_number smallint [not null, unique]
+  name_th varchar(150) [not null]
+  sort_order smallint [not null]
+  is_active boolean [not null, default: true]
+}
+
+Table exercises {
+  id int [pk, increment]
+  module_id int [not null, ref: > exercise_modules.id]
+  code varchar(60) [not null, unique]
+  name_th varchar(150) [not null]
+  name_en varchar(150)
+  description text
+  tutorial_steps text
+  tutorial_media_key text
+  camera_view varchar(30)
+  supports_side_selection boolean [not null, default: false]
+  default_sets smallint [not null, default: 3]
+  default_reps_per_set smallint [not null, default: 10]
+  sort_order smallint [not null]
+  is_active boolean [not null, default: true]
+  Note: 'รายการในหัวข้อ 1.3 ล่าสุดมี 2 หมวด 5 ท่า: หมวด 1 บริหารลำตัวขณะนั่งและกระดกข้อเท้า; หมวด 2 ยกขาขณะนั่ง ลุกยืนจากท่านั่ง และยกสะโพก; รองรับเพิ่มหมวดในอนาคต' 
+}
+
+Table exercise_angle_metrics {
+  id int [pk, increment]
+  exercise_id int [not null, ref: > exercises.id]
+  metric_code varchar(60) [not null, note: 'รหัสมุม เช่น trunk_inclination=มุมเอียงลำตัว หรือ knee_angle=มุมเข่า']
+  label_th varchar(50) [not null]
+  landmark_a varchar(32) [not null]
+  landmark_b varchar(32) [not null]
+  landmark_c varchar(32) [note: 'เว้นว่างได้เมื่อวัดมุมเทียบกับแนวดิ่ง']
+  reference_axis varchar(20) [note: 'แกนอ้างอิง เช่น vertical=แนวดิ่งสำหรับวัดลำตัว']
+  is_primary boolean [not null, default: false]
+  definition_version smallint [not null, default: 1]
+  indexes { (exercise_id, metric_code, definition_version) [unique] }
+}
+
+Table exercise_checkpoints {
+  id int [pk, increment]
+  exercise_id int [not null, ref: > exercises.id]
+  metric_id int [ref: > exercise_angle_metrics.id]
+  code varchar(60) [not null]
+  phase varchar(30) [not null, note: 'ช่วงการเคลื่อนไหว: ตั้งกล้อง, เริ่ม, กำลังขยับ, จุดสูงสุด, กลับจุดเริ่ม']
+  min_value decimal(8,3)
+  max_value decimal(8,3)
+  feedback_code varchar(60)
+  instruction_th varchar(255)
+  weight decimal(6,3) [not null, default: 1]
+  criteria_version smallint [not null, default: 1]
+  indexes { (exercise_id, code, criteria_version) [unique] }
+}
+
+// แผนกลางที่แพทย์จัดไว้ให้ผู้ป่วยเลือก; แยกจากแผนที่ผู้ป่วยเลือกใช้งานจริง
+Table rehabilitation_templates {
+  id int [pk, increment]
+  template_code varchar(40) [not null, unique]
+  name_th varchar(150) [not null]
+  description text
+  created_by int [not null, ref: > users.id, note: 'บัญชีแพทย์หรือนักกายภาพที่จัดแผนกลาง']
+  version_number smallint [not null, default: 1]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Note: 'แก้แผนที่มีคนเลือกใช้แล้วด้วยการสร้างรุ่นใหม่และปิดรุ่นเดิม; ไม่เปลี่ยนเป้าหมายย้อนหลังของผู้ป่วย'
+}
+
+Table template_exercises {
+  id int [pk, increment]
+  template_id int [not null, ref: > rehabilitation_templates.id]
+  exercise_id int [not null, ref: > exercises.id]
+  selected_side varchar(20) [note: 'left=ซ้าย, right=ขวา, both=สองข้าง, none=ไม่แยกข้าง; ว่างให้ผู้ป่วยเลือกก่อนฝึก']
+  target_sets smallint [not null]
+  target_reps_per_set smallint [not null]
+  sessions_per_day smallint [not null, default: 1]
+  schedule_type varchar(20) [not null, default: 'daily', note: 'daily=ทุกวัน, weekly=ตามวันในสัปดาห์']
+  sort_order smallint [not null]
+  instructions text
+  Note: 'เลือกท่าจากหลายหมวดได้; จำนวนเซตและจำนวนครั้งต้องมากกว่าศูนย์; เลือกข้างได้เฉพาะท่าที่รองรับ'
+}
+
+Table template_exercise_weekdays {
+  template_exercise_id int [not null, ref: > template_exercises.id]
+  weekday smallint [not null, note: '1=จันทร์ ถึง 7=อาทิตย์; ใช้กับตารางรายสัปดาห์']
+  indexes { (template_exercise_id, weekday) [pk] }
+}
+
+Table rehabilitation_plans {
+  id int [pk, increment]
+  source_template_id int [ref: > rehabilitation_templates.id, note: 'แผนกลางที่เลือก; เว้นว่างได้สำหรับแผนที่จัดให้ผู้ป่วยโดยตรง']
+  plan_code varchar(40) [not null, unique, note: 'รหัสแผนที่แสดงให้ผู้ใช้เห็นและห้ามแก้ไข']
+  patient_id int [not null, ref: > patient_profiles.patient_id]
+  created_by int [not null, ref: > users.id, note: 'ผู้ป่วยที่เลือกแผนกลาง หรือแพทย์ที่จัดแผนให้โดยตรง']
+  status varchar(20) [not null, default: 'active', note: 'active=ใช้งาน, paused=พักแผน, ended=สิ้นสุด; มีมากกว่าสองค่าจึงใช้ข้อความ']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table plan_exercises {
+  id int [pk, increment]
+  source_template_exercise_id int [ref: > template_exercises.id, note: 'รายการต้นทางในแผนกลาง; เว้นว่างได้ถ้าจัดให้ผู้ป่วยโดยตรง']
+  plan_id int [not null, ref: > rehabilitation_plans.id]
+  exercise_id int [not null, ref: > exercises.id]
+  selected_side varchar(20) [note: 'ข้างที่ฝึก: left=ซ้าย, right=ขวา, both=สองข้าง, none=ไม่แยกข้าง']
+  target_sets smallint [not null]
+  target_reps_per_set smallint [not null]
+  sessions_per_day smallint [not null, default: 1]
+  schedule_type varchar(20) [not null, default: 'daily', note: 'daily=ทุกวัน, weekly=ตามวันในสัปดาห์']
+  effective_from timestamptz [not null, note: 'เวลาเริ่มใช้รายการแผนรุ่นนี้ รวมเวลานี้ด้วย']
+  effective_to timestamptz [note: 'เวลาสิ้นสุดการใช้ ไม่รวมเวลานี้; ว่างหมายถึงยังไม่กำหนดสิ้นสุด']
+  version_number smallint [not null]
+  configured_by int [not null, ref: > users.id]
+  instruction_override text
+  indexes { (plan_id, exercise_id, version_number) [unique] }
+  Note: 'เมื่อผู้ป่วยเลือกแผนกลาง ให้คัดลอกท่า เป้าหมาย ข้าง และตารางวันมาที่แผนผู้ป่วย; เมื่อแก้แผนให้ปิดรุ่นเดิมและสร้างรุ่นใหม่; ห้ามเปลี่ยนเป้าหมายรายวันที่สร้างไว้แล้วโดยอัตโนมัติ'
+}
+
+Table plan_exercise_weekdays {
+  plan_exercise_id int [not null, ref: > plan_exercises.id]
+  weekday smallint [not null, note: 'วันในสัปดาห์: 1=จันทร์ ถึง 7=อาทิตย์; ใช้เมื่อกำหนดตารางรายสัปดาห์']
+  indexes { (plan_exercise_id, weekday) [pk] }
+}
+
+Table rehabilitation_days {
+  id int [pk, increment]
+  patient_id int [not null, ref: > patient_profiles.patient_id]
+  local_date date [not null, note: 'วันที่ตามเขตเวลาไทย']
+  started_at timestamptz
+  last_activity_at timestamptz
+  is_closed boolean [not null, default: false, note: 'ปิดวันฝึกแล้วหรือยัง; ไม่ใช่ตัวบอกว่าทำครบเป้าหมาย']
+  indexes { (patient_id, local_date) [unique] }
+  Note: 'รายการฝึกประจำวันตามเวลาไทย; วันถัดไปสร้างเป้าหมายใหม่ตามแผนที่มีผล; วันไม่มีท่าที่ได้รับมอบหมายให้แสดงว่าไม่มีรายการฝึก ไม่หารด้วยศูนย์'
+}
+
+Table daily_exercises {
+  id int [pk, increment]
+  rehabilitation_day_id int [not null, ref: > rehabilitation_days.id]
+  plan_exercise_id int [not null, ref: > plan_exercises.id]
+  exercise_id int [not null, ref: > exercises.id]
+  selected_side varchar(20)
+  target_sets smallint [not null, note: 'จำนวนเซตที่ต้องทำทั้งหมดในวันนี้ รวมความถี่ที่กำหนดไว้']
+  target_reps_per_set smallint [not null]
+  status varchar(20) [not null, default: 'not_started', note: 'not_started=ยังไม่เริ่ม, in_progress=เริ่มแล้วแต่เซตที่บันทึกยังไม่ครบ, completed=บันทึกครบเซตเป้าหมาย']
+  started_at timestamptz
+  completed_at timestamptz
+  indexes { (rehabilitation_day_id, plan_exercise_id) [unique] }
+}
+
+Table exercise_sessions {
+  id int [pk, increment]
+  daily_exercise_id int [not null, ref: > daily_exercises.id]
+  started_at timestamptz [not null]
+  ended_at timestamptz
+  status varchar(20) [not null, default: 'in_progress', note: 'in_progress=กำลังทำ, paused=หยุดพักและทำต่อได้, completed=จบรอบฝึก, cancelled=ยกเลิก']
+  score decimal(6,2) [note: 'เว้นว่างได้จนกว่าจะตกลงสูตรคะแนน']
+  scoring_version smallint
+  Note: 'หนึ่งรอบการฝึกของท่าในรายการประจำวัน; เซตที่บันทึกแล้วคงอยู่; ออกจากการฝึกก่อนบันทึกให้ทิ้งเฉพาะผลเซตปัจจุบัน; การเริ่มรอบใหม่ไม่รีเซ็ตความคืบหน้าที่บันทึกแล้วในวันเดิม'
+}
+
+Table camera_checks {
+  id int [pk, increment]
+  exercise_session_id int [not null, ref: > exercise_sessions.id]
+  checked_at timestamptz [not null]
+  view_detected varchar(30)
+  selected_side varchar(20)
+  is_ready boolean [not null]
+  feedback_code varchar(60)
+  confidence decimal(4,3)
+  Note: 'การนับถอยหลังและสีโครงกระดูกบนหน้ากล้องแสดงแบบสด ไม่จำเป็นต้องเก็บถาวร'
+}
+
+Table exercise_sets {
+  id int [pk, increment]
+  exercise_session_id int [not null, ref: > exercise_sessions.id]
+  set_number smallint [not null]
+  target_reps smallint [not null]
+  status varchar(20) [not null, default: 'draft', note: 'draft=ยังไม่บันทึก, paused=หยุดพักและทำต่อได้, saved=บันทึกแล้ว, cancelled=ยกเลิก']
+  started_at timestamptz
+  saved_at timestamptz [note: 'เวลาที่กดบันทึก; นับเซตนี้แม้ทำไม่ครบเป้าหมาย']
+  last_activity_at timestamptz
+  elapsed_seconds int [note: 'เวลาที่ฝึกจริงเป็นวินาที ไม่รวมเวลาที่กดหยุดพัก']
+  score decimal(6,2)
+  scoring_version smallint
+  indexes { (exercise_session_id, set_number) [unique] }
+  Note: 'กดบันทึกได้แม้จำนวนครั้งไม่ครบเป้าหมาย; บันทึกแล้วปิดเซตและเริ่มเซตถัดไป; กดเริ่มใหม่ให้ล้างผลเซตปัจจุบัน; กดออกก่อนบันทึกให้ทิ้งผลเซตปัจจุบัน; รายงานนับเฉพาะสถานะ saved; cancelled เก็บได้เฉพาะสถานะโดยไม่มีผลการเคลื่อนไหว'
+}
+
+Table repetitions {
+  id int [pk, increment]
+  set_id int [not null, ref: > exercise_sets.id]
+  rep_number smallint [not null]
+  started_at timestamptz [not null]
+  completed_at timestamptz [not null]
+  selected_side varchar(20)
+  is_correct boolean [not null]
+  feedback_code varchar(60)
+  quality_score decimal(6,2)
+  criteria_version smallint [not null]
+  confidence decimal(4,3)
+  indexes { (set_id, rep_number) [unique] }
+  Note: 'นับหนึ่งครั้งเมื่อเคลื่อนออกแล้วกลับจุดเริ่ม แม้ทำไม่ถูกเกณฑ์; ระหว่างทำและหยุดพักเก็บผลชั่วคราวไว้สำหรับทำต่อ; ปุ่มหยุดไม่ล้างผลและยังไม่นับเป็นเซตที่บันทึก; เมื่อกดบันทึกเซตจึงเขียนผลทุกครั้งพร้อมกัน; ออกหรือเริ่มใหม่ทิ้งผลที่ยังไม่บันทึก' 
+}
+
+Table repetition_metrics {
+  id int [pk, increment]
+  repetition_id int [not null, ref: > repetitions.id]
+  metric_id int [not null, ref: > exercise_angle_metrics.id]
+  start_angle_deg decimal(7,2)
+  peak_angle_deg decimal(7,2) [not null]
+  end_angle_deg decimal(7,2)
+  angular_excursion_deg decimal(7,2) [note: 'ช่วงการเคลื่อนไหวของมุม คำนวณจากมุมเริ่มและมุมสูงสุดตามเกณฑ์ที่ตกลง']
+  duration_ms int
+  selected_side varchar(20)
+  indexes { (repetition_id, metric_id) [unique] }
+  Note: 'องศาเฉลี่ยต่อเซต = เฉลี่ยมุมสูงสุดของแต่ละครั้ง; องศาสูงสุดต่อเซต = มุมที่สูงที่สุด เฉพาะเซตที่บันทึกและมุมหลัก'
+}
+
+Table repetition_checkpoint_results {
+  repetition_id int [not null, ref: > repetitions.id]
+  checkpoint_id int [not null, ref: > exercise_checkpoints.id]
+  passed boolean [not null]
+  observed_value decimal(8,3)
+  feedback_code varchar(60)
+  indexes { (repetition_id, checkpoint_id) [pk] }
+}
+
+
+// ความคืบหน้ารายวัน = จำนวนเซตที่บันทึกแล้ว ÷ ผลรวมเซตที่ได้รับมอบหมายในวันนั้น × 100
+// จำนวนครั้งรวม/ครั้งที่ถูกต้องต่อเซต = นับ repetitions ทั้งหมด/เฉพาะ is_correct ในเซตที่บันทึกแล้ว
+// กราฟแนวโน้มและการเทียบวันก่อน = สรุปผลตามวันที่และท่าฝึก เฉพาะเซตที่บันทึกแล้ว
+// คะแนนรายท่า/รายหมวด = รวม quality_score ด้วยสูตรที่แพทย์อนุมัติและเก็บหมายเลขรุ่นสูตร
+
+// กติกาที่ต้องทำในระบบหรือเพิ่มข้อจำกัดเมื่อสร้าง PostgreSQL จริง
+// 1. สิทธิ์: เฉพาะแพทย์/นักกายภาพ/ผู้ดูแลจัดแผนกลาง; ผู้ป่วยเลือกได้เฉพาะแผนกลางที่เปิดใช้งาน
+// 2. แผนกลางเป็นต้นแบบ; แผนผู้ป่วยและรายการรายวันเป็นสำเนาเป้าหมายที่ใช้จริง ไม่อ่านค่าต้นแบบใหม่ย้อนหลัง
+// 3. บันทึกเซตและผลรายครั้งในธุรกรรมเดียวกัน; การกดบันทึกซ้ำต้องไม่สร้างเซตหรือผลซ้ำ
+// 4. กดยกเลิกให้ลบผลที่ยังไม่บันทึกใน repetitions, repetition_metrics และ repetition_checkpoint_results 
+// 5. ฝั่งเซิร์ฟเวอร์ตรวจว่าผู้ป่วยของเซสชันตรงกับแผน และท่า/ตัวชี้วัด/เกณฑ์เป็นของท่าเดียวกัน
+// 6. มุมสูงสุดรายเซต = MAX(peak_angle_deg); มุมสูงสุดเฉลี่ยรายเซต = AVG(peak_angle_deg) เฉพาะเซตที่บันทึก
+// 7. แยกการสรุปตาม metric_id และ selected_side; ไม่เฉลี่ยมุมคนละชนิดหรือคนละข้างปนกัน
+// 8. คะแนนหมวดคำนวณจากคะแนนท่าที่บันทึกแล้วในหมวดเดียวกัน; ต้องกำหนดสูตรและรุ่นสูตรก่อนใช้
+// 9. จำนวนเซต/ครั้ง/ความถี่ต้องเป็นบวก, weekday อยู่ใน 1–7, confidence อยู่ใน 0–1
+// 10. effective_to ต้องมากกว่า effective_from และแผนรุ่นเดียวกันต้องไม่ซ้อนช่วงเวลาของรายการฝึกเดิม
+// 11. ไม่เพิ่มข้อมูล IMU หรือแบบประเมินทั่วไปจนกว่าจะระบุชนิดข้อมูลและวิธีใช้งานชัดเจน
+
+// ขอบเขตการเก็บข้อมูลฉบับนี้
+// - ไม่มีตารางไฟล์ท่าทางดิบ เพราะหัวข้อ 1.3 ล่าสุดไม่มีฟังก์ชันบันทึก Raw Time-Series
+// - ไม่เก็บวิดีโอการฝึก ตามข้อยืนยันของผู้ใช้; tutorial_media_key ใช้กับสื่อสาธิตท่าเท่านั้น
+// - คงการไม่เก็บน้ำหนัก ส่วนสูง และกรุ๊ปเลือดตามข้อยืนยันเดิม แม้รายงานยังมีข้อความเหล่านี้
+// - รหัส session ใช้ exercise_sessions.id; HN และรหัสท่าอ่านผ่านความสัมพันธ์ ไม่เก็บซ้ำทุกเซต
+// - เป้าหมายรายวันอ่านจาก daily_exercises; เป้าหมายจำนวนครั้งต่อเซตเก็บสำเนาใน exercise_sets.target_reps
+// - จำนวนครั้งจริงและจำนวนครั้งถูกต้องคำนวณจาก repetitions เฉพาะเซต saved
+// - มุมเฉลี่ยคือค่าเฉลี่ยของมุมสูงสุดรายรอบ ไม่ใช่ค่าเฉลี่ยทุกเฟรม
+// - ลำดับเซตเริ่มใหม่ในแต่ละ session; ความคืบหน้ารายวันรวมเซตที่ saved จากทุก session ของรายการฝึกวันนั้น
+// - ไม่ให้เซตที่บันทึกเพื่อเป้าหมายเดียวกันเกิน daily_exercises.target_sets; กดบันทึกพร้อมกันต้องล็อกรายการรายวัน
+// - เมื่อเป้าหมายครบแล้ว ให้เริ่ม session เพิ่มได้เฉพาะเมื่อระบบมีฟังก์ชันฝึกเสริมที่ระบุชัดเจน
+// - สถานะ session completed หมายถึงจบรอบนั้น; สถานะ daily_exercises.completed หมายถึงบันทึกครบเป้าหมายรายวัน
+// - ข้อมูลตรวจกล้องเป็นผลสรุปการตรวจแต่ละครั้ง ไม่ใช่จุดร่างกายทุกเฟรม
+// - ไม่เพิ่มตารางกราฟหรือคะแนนหมวดที่คำนวณได้จากผลเดิม; ยังต้องตกลงสูตรคะแนนก่อนใช้จริง
+// ปุ่มหยุด: เปลี่ยน session และเซตปัจจุบันเป็น paused; คงจำนวนครั้ง มุม และเวลาฝึกสะสมไว้
+// ปุ่มทำต่อ: session กลับเป็น in_progress และเซตกลับเป็น draft; นับต่อจากผลเดิม ไม่รวมเวลาพัก
+// การทำต่อหลังพักให้เริ่มตรวจรอบใหม่จากท่าเริ่ม; ไม่เพิ่มครั้งให้รอบที่ยังไม่ครบก่อนหยุด
+// ปุ่มหยุดไม่ใช่ปุ่มบันทึกหรือปุ่มออก; Daily Progress ยังนับเฉพาะเซต saved
+
