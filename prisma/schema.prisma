@@ -1,0 +1,372 @@
+// Source of truth: docs/MoRe_Database_scope_1_3 (1).dbml.
+// Scalar field names match PostgreSQL; model names are mapped to existing table names.
+// DBML omits referential actions: PostgreSQL NO ACTION is used explicitly.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                       Int      @id @default(autoincrement()) @db.Integer
+  role                     String   @db.VarChar(20)
+  login_name               String?  @unique @db.VarChar(30)
+  password_hash            String   @db.VarChar(128)
+  password_change_required Boolean  @default(false)
+  display_name             String   @db.VarChar(100)
+  is_active                Boolean  @default(true)
+  created_at               DateTime @db.Timestamptz(6)
+  updated_at               DateTime @db.Timestamptz(6)
+
+  patientProfile      PatientProfile?
+  templates           RehabilitationTemplate[]
+  createdPlans        RehabilitationPlan[]
+  configuredExercises PlanExercise[]
+
+  @@map("users")
+}
+
+model PatientProfile {
+  patient_id            Int       @id @db.Integer
+  hn                    String?   @unique @db.VarChar(40)
+  national_id_lookup    String    @unique @db.VarChar(64)
+  national_id_encrypted String    @db.Text
+  full_name             String    @db.VarChar(200)
+  date_of_birth         DateTime? @db.Date
+  phone                 String?   @db.VarChar(20)
+  sex                   String?   @db.VarChar(20)
+  primary_doctor_name   String?   @db.VarChar(150)
+  stroke_type           String?   @db.VarChar(100)
+  stroke_diagnosed_on   DateTime? @db.Date
+  other_conditions      String?   @db.Text
+  medical_notes         String?   @db.Text
+  updated_at            DateTime  @db.Timestamptz(6)
+
+  user  User                 @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plans RehabilitationPlan[]
+  days  RehabilitationDay[]
+
+  @@map("patient_profiles")
+}
+
+model ExerciseModule {
+  id            Int        @id @default(autoincrement()) @db.Integer
+  module_number Int        @unique @db.SmallInt
+  name_th       String     @db.VarChar(150)
+  sort_order    Int        @db.SmallInt
+  is_active     Boolean    @default(true)
+  exercises     Exercise[]
+
+  @@map("exercise_modules")
+}
+
+model Exercise {
+  id                      Int     @id @default(autoincrement()) @db.Integer
+  module_id               Int     @db.Integer
+  code                    String  @unique @db.VarChar(60)
+  name_th                 String  @db.VarChar(150)
+  name_en                 String? @db.VarChar(150)
+  description             String? @db.Text
+  tutorial_steps          String? @db.Text
+  tutorial_media_key      String? @db.Text
+  camera_view             String? @db.VarChar(30)
+  supports_side_selection Boolean @default(false)
+  default_sets            Int     @default(3) @db.SmallInt
+  default_reps_per_set    Int     @default(10) @db.SmallInt
+  sort_order              Int     @db.SmallInt
+  is_active               Boolean @default(true)
+
+  module            ExerciseModule        @relation(fields: [module_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  angleMetrics      ExerciseAngleMetric[]
+  checkpoints       ExerciseCheckpoint[]
+  templateExercises TemplateExercise[]
+  planExercises     PlanExercise[]
+  dailyExercises    DailyExercise[]
+
+  @@map("exercises")
+}
+
+model ExerciseAngleMetric {
+  id                 Int     @id @default(autoincrement()) @db.Integer
+  exercise_id        Int     @db.Integer
+  metric_code        String  @db.VarChar(60)
+  label_th           String  @db.VarChar(50)
+  landmark_a         String  @db.VarChar(32)
+  landmark_b         String  @db.VarChar(32)
+  landmark_c         String? @db.VarChar(32)
+  reference_axis     String? @db.VarChar(20)
+  is_primary         Boolean @default(false)
+  definition_version Int     @default(1) @db.SmallInt
+
+  exercise          Exercise             @relation(fields: [exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  checkpoints       ExerciseCheckpoint[]
+  repetitionMetrics RepetitionMetric[]
+
+  @@unique([exercise_id, metric_code, definition_version])
+  @@map("exercise_angle_metrics")
+}
+
+model ExerciseCheckpoint {
+  id               Int      @id @default(autoincrement()) @db.Integer
+  exercise_id      Int      @db.Integer
+  metric_id        Int?     @db.Integer
+  code             String   @db.VarChar(60)
+  phase            String   @db.VarChar(30)
+  min_value        Decimal? @db.Decimal(8, 3)
+  max_value        Decimal? @db.Decimal(8, 3)
+  feedback_code    String?  @db.VarChar(60)
+  instruction_th   String?  @db.VarChar(255)
+  weight           Decimal  @default(1) @db.Decimal(6, 3)
+  criteria_version Int      @default(1) @db.SmallInt
+
+  exercise Exercise                     @relation(fields: [exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  metric   ExerciseAngleMetric?         @relation(fields: [metric_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  results  RepetitionCheckpointResult[]
+
+  @@unique([exercise_id, code, criteria_version])
+  @@map("exercise_checkpoints")
+}
+
+model RehabilitationTemplate {
+  id             Int      @id @default(autoincrement()) @db.Integer
+  template_code  String   @unique @db.VarChar(40)
+  name_th        String   @db.VarChar(150)
+  description    String?  @db.Text
+  created_by     Int      @db.Integer
+  version_number Int      @default(1) @db.SmallInt
+  is_active      Boolean  @default(true)
+  created_at     DateTime @db.Timestamptz(6)
+  updated_at     DateTime @db.Timestamptz(6)
+
+  creator   User                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exercises TemplateExercise[]
+  plans     RehabilitationPlan[]
+
+  @@map("rehabilitation_templates")
+}
+
+model TemplateExercise {
+  id                  Int     @id @default(autoincrement()) @db.Integer
+  template_id         Int     @db.Integer
+  exercise_id         Int     @db.Integer
+  selected_side       String? @db.VarChar(20)
+  target_sets         Int     @db.SmallInt
+  target_reps_per_set Int     @db.SmallInt
+  sessions_per_day    Int     @default(1) @db.SmallInt
+  schedule_type       String  @default("daily") @db.VarChar(20)
+  sort_order          Int     @db.SmallInt
+  instructions        String? @db.Text
+
+  template      RehabilitationTemplate    @relation(fields: [template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exercise      Exercise                  @relation(fields: [exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  weekdays      TemplateExerciseWeekday[]
+  planExercises PlanExercise[]
+
+  @@map("template_exercises")
+}
+
+model TemplateExerciseWeekday {
+  template_exercise_id Int              @db.Integer
+  weekday              Int              @db.SmallInt
+  templateExercise     TemplateExercise @relation(fields: [template_exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([template_exercise_id, weekday])
+  @@map("template_exercise_weekdays")
+}
+
+model RehabilitationPlan {
+  id                 Int      @id @default(autoincrement()) @db.Integer
+  source_template_id Int?     @db.Integer
+  plan_code          String   @unique @db.VarChar(40)
+  patient_id         Int      @db.Integer
+  created_by         Int      @db.Integer
+  status             String   @default("active") @db.VarChar(20)
+  created_at         DateTime @db.Timestamptz(6)
+  updated_at         DateTime @db.Timestamptz(6)
+
+  sourceTemplate RehabilitationTemplate? @relation(fields: [source_template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patient        PatientProfile          @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
+  creator        User                    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exercises      PlanExercise[]
+
+  @@map("rehabilitation_plans")
+}
+
+model PlanExercise {
+  id                          Int       @id @default(autoincrement()) @db.Integer
+  source_template_exercise_id Int?      @db.Integer
+  plan_id                     Int       @db.Integer
+  exercise_id                 Int       @db.Integer
+  selected_side               String?   @db.VarChar(20)
+  target_sets                 Int       @db.SmallInt
+  target_reps_per_set         Int       @db.SmallInt
+  sessions_per_day            Int       @default(1) @db.SmallInt
+  schedule_type               String    @default("daily") @db.VarChar(20)
+  effective_from              DateTime  @db.Timestamptz(6)
+  effective_to                DateTime? @db.Timestamptz(6)
+  version_number              Int       @db.SmallInt
+  configured_by               Int       @db.Integer
+  instruction_override        String?   @db.Text
+
+  sourceTemplateExercise TemplateExercise?     @relation(fields: [source_template_exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan                   RehabilitationPlan    @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exercise               Exercise              @relation(fields: [exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  configuredBy           User                  @relation(fields: [configured_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  weekdays               PlanExerciseWeekday[]
+  dailyExercises         DailyExercise[]
+
+  @@unique([plan_id, exercise_id, version_number])
+  @@map("plan_exercises")
+}
+
+model PlanExerciseWeekday {
+  plan_exercise_id Int          @db.Integer
+  weekday          Int          @db.SmallInt
+  planExercise     PlanExercise @relation(fields: [plan_exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([plan_exercise_id, weekday])
+  @@map("plan_exercise_weekdays")
+}
+
+model RehabilitationDay {
+  id               Int       @id @default(autoincrement()) @db.Integer
+  patient_id       Int       @db.Integer
+  local_date       DateTime  @db.Date
+  started_at       DateTime? @db.Timestamptz(6)
+  last_activity_at DateTime? @db.Timestamptz(6)
+  is_closed        Boolean   @default(false)
+
+  patient        PatientProfile  @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
+  dailyExercises DailyExercise[]
+
+  @@unique([patient_id, local_date])
+  @@map("rehabilitation_days")
+}
+
+model DailyExercise {
+  id                    Int       @id @default(autoincrement()) @db.Integer
+  rehabilitation_day_id Int       @db.Integer
+  plan_exercise_id      Int       @db.Integer
+  exercise_id           Int       @db.Integer
+  selected_side         String?   @db.VarChar(20)
+  target_sets           Int       @db.SmallInt
+  target_reps_per_set   Int       @db.SmallInt
+  status                String    @default("not_started") @db.VarChar(20)
+  started_at            DateTime? @db.Timestamptz(6)
+  completed_at          DateTime? @db.Timestamptz(6)
+
+  day          RehabilitationDay @relation(fields: [rehabilitation_day_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  planExercise PlanExercise      @relation(fields: [plan_exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exercise     Exercise          @relation(fields: [exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sessions     ExerciseSession[]
+
+  @@unique([rehabilitation_day_id, plan_exercise_id])
+  @@map("daily_exercises")
+}
+
+model ExerciseSession {
+  id                Int       @id @default(autoincrement()) @db.Integer
+  daily_exercise_id Int       @db.Integer
+  started_at        DateTime  @db.Timestamptz(6)
+  ended_at          DateTime? @db.Timestamptz(6)
+  status            String    @default("in_progress") @db.VarChar(20)
+  score             Decimal?  @db.Decimal(6, 2)
+  scoring_version   Int?      @db.SmallInt
+
+  dailyExercise DailyExercise @relation(fields: [daily_exercise_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cameraChecks  CameraCheck[]
+  sets          ExerciseSet[]
+
+  @@map("exercise_sessions")
+}
+
+model CameraCheck {
+  id                  Int             @id @default(autoincrement()) @db.Integer
+  exercise_session_id Int             @db.Integer
+  checked_at          DateTime        @db.Timestamptz(6)
+  view_detected       String?         @db.VarChar(30)
+  selected_side       String?         @db.VarChar(20)
+  is_ready            Boolean
+  feedback_code       String?         @db.VarChar(60)
+  confidence          Decimal?        @db.Decimal(4, 3)
+  session             ExerciseSession @relation(fields: [exercise_session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("camera_checks")
+}
+
+model ExerciseSet {
+  id                  Int       @id @default(autoincrement()) @db.Integer
+  exercise_session_id Int       @db.Integer
+  set_number          Int       @db.SmallInt
+  target_reps         Int       @db.SmallInt
+  status              String    @default("draft") @db.VarChar(20)
+  started_at          DateTime? @db.Timestamptz(6)
+  saved_at            DateTime? @db.Timestamptz(6)
+  last_activity_at    DateTime? @db.Timestamptz(6)
+  elapsed_seconds     Int?      @db.Integer
+  score               Decimal?  @db.Decimal(6, 2)
+  scoring_version     Int?      @db.SmallInt
+
+  session     ExerciseSession @relation(fields: [exercise_session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  repetitions Repetition[]
+
+  @@unique([exercise_session_id, set_number])
+  @@map("exercise_sets")
+}
+
+model Repetition {
+  id               Int      @id @default(autoincrement()) @db.Integer
+  set_id           Int      @db.Integer
+  rep_number       Int      @db.SmallInt
+  started_at       DateTime @db.Timestamptz(6)
+  completed_at     DateTime @db.Timestamptz(6)
+  selected_side    String?  @db.VarChar(20)
+  is_correct       Boolean
+  feedback_code    String?  @db.VarChar(60)
+  quality_score    Decimal? @db.Decimal(6, 2)
+  criteria_version Int      @db.SmallInt
+  confidence       Decimal? @db.Decimal(4, 3)
+
+  set               ExerciseSet                  @relation(fields: [set_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  metrics           RepetitionMetric[]
+  checkpointResults RepetitionCheckpointResult[]
+
+  @@unique([set_id, rep_number])
+  @@map("repetitions")
+}
+
+model RepetitionMetric {
+  id                    Int      @id @default(autoincrement()) @db.Integer
+  repetition_id         Int      @db.Integer
+  metric_id             Int      @db.Integer
+  start_angle_deg       Decimal? @db.Decimal(7, 2)
+  peak_angle_deg        Decimal  @db.Decimal(7, 2)
+  end_angle_deg         Decimal? @db.Decimal(7, 2)
+  angular_excursion_deg Decimal? @db.Decimal(7, 2)
+  duration_ms           Int?     @db.Integer
+  selected_side         String?  @db.VarChar(20)
+
+  repetition Repetition          @relation(fields: [repetition_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  metric     ExerciseAngleMetric @relation(fields: [metric_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([repetition_id, metric_id])
+  @@map("repetition_metrics")
+}
+
+model RepetitionCheckpointResult {
+  repetition_id  Int      @db.Integer
+  checkpoint_id  Int      @db.Integer
+  passed         Boolean
+  observed_value Decimal? @db.Decimal(8, 3)
+  feedback_code  String?  @db.VarChar(60)
+
+  repetition Repetition         @relation(fields: [repetition_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  checkpoint ExerciseCheckpoint @relation(fields: [checkpoint_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([repetition_id, checkpoint_id])
+  @@map("repetition_checkpoint_results")
+}

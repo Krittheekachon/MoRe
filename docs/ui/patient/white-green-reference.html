@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gait Analysis – ระบบฟื้นฟูผู้ป่วย (ต้นแบบ UI ผู้ป่วย)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#F4FAF6; --surface:#FFFFFF; --surface2:#F7FCF8; --ink:#143024; --muted:#4E6A5B;
+  --line:#CFE5D6; --line2:#E2F0E7;
+  --pri:#178A55; --pri-d:#0F6F42; --pri-t:#E1F4E8; --on-pri:#FFFFFF;
+  --blue:#2A66A8; --blue-t:#E6EFF8;
+  --ok:#1B8A5A; --ok-t:#DDF2E6; --warn:#8F5A00; --warn-t:#FDF2D9;
+  --neu:#4A6055; --neu-t:#E8F0EB; --danger:#B3261E; --danger-t:#FBE8E6;
+  --hov:#9CC4AB; --figs:#A8CDB6; --brandg:linear-gradient(160deg,#1A9158,#0D6A40); --shadow:rgba(20,48,36,.16);
+  --font:'IBM Plex Sans Thai','Noto Sans Thai',system-ui,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B151C; --surface:#12212B; --surface2:#162833; --ink:#E7F0F5; --muted:#9FB2C0;
+    --line:#26394A; --line2:#1E3140;
+    --pri:#3CB8AE; --pri-d:#5FD0C6; --pri-t:#133B3A; --on-pri:#06201E;
+    --blue:#7FB4EA; --blue-t:#16304A;
+    --ok:#52C28C; --ok-t:#14372A; --warn:#F0BE64; --warn-t:#3B2E12;
+    --neu:#A9BBC8; --neu-t:#1E3140; --danger:#F2A39E; --danger-t:#3F1D1A;
+    --hov:#4A6A7E; --figs:#9DB6C2; --brandg:linear-gradient(160deg,#0A5E5A,#0A3F44); --shadow:rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B151C; --surface:#12212B; --surface2:#162833; --ink:#E7F0F5; --muted:#9FB2C0;
+  --line:#26394A; --line2:#1E3140;
+  --pri:#3CB8AE; --pri-d:#5FD0C6; --pri-t:#133B3A; --on-pri:#06201E;
+  --blue:#7FB4EA; --blue-t:#16304A;
+  --ok:#52C28C; --ok-t:#14372A; --warn:#F0BE64; --warn-t:#3B2E12;
+  --neu:#A9BBC8; --neu-t:#1E3140; --danger:#F2A39E; --danger-t:#3F1D1A;
+  --hov:#4A6A7E; --figs:#9DB6C2; --brandg:linear-gradient(160deg,#0A5E5A,#0A3F44); --shadow:rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{font-size:16px;height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+html[data-size="l"]{font-size:17.5px}
+html[data-size="xl"]{font-size:19px}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.55;
+  font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
+h1,h2,h3,h4,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:3rem;padding:0 1.25rem;border-radius:var(--r);
+  font-weight:600;border:1.5px solid transparent;transition:background .15s,transform .1s;text-align:center}
+.btn:active{transform:scale(.985)}
+.btn-pri{background:var(--pri);color:var(--on-pri)}
+.btn-pri:hover{background:var(--pri-d)}
+.btn-sec{background:var(--surface);border-color:var(--pri);color:var(--pri)}
+.btn-sec:hover{background:var(--pri-t)}
+.btn-soft{background:var(--pri-t);color:var(--pri-d)}
+.btn-line{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.btn-line:hover{background:var(--surface2)}
+.btn-text{min-height:2.75rem;padding:0 .5rem;color:var(--pri);font-weight:600}
+.btn-block{width:100%}
+.btn-sm{min-height:2.5rem;padding:0 1rem;font-size:.95rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:1.15rem;height:1.15rem}
+
+/* ---------- Form ---------- */
+.lbl{display:block;font-weight:600;font-size:.95rem;margin:1.1rem 0 .4rem}
+.lbl .req{color:var(--danger)}
+.hint{font-size:.85rem;color:var(--muted);margin-top:.35rem}
+.inp{width:100%;min-height:3rem;padding:0 .9rem;border:1.5px solid var(--line);border-radius:var(--r);background:var(--surface);
+  transition:border-color .15s,box-shadow .15s}
+.inp:hover{border-color:var(--hov)}
+.inp:focus{outline:0;border-color:var(--pri);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 22%,transparent)}
+.inp[readonly]{background:var(--surface2);color:var(--muted)}
+.inp-wrap{position:relative}
+.inp-wrap .inp{padding-right:3.2rem}
+.eye{position:absolute;right:.3rem;top:50%;transform:translateY(-50%);width:2.6rem;height:2.6rem;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.eye svg{width:1.3rem;height:1.3rem}
+.err{display:flex;gap:.5rem;align-items:flex-start;background:var(--danger-t);color:var(--danger);border-radius:var(--r);padding:.7rem .9rem;margin-top:1rem;font-size:.92rem;font-weight:500}
+.notice{display:flex;gap:.7rem;align-items:flex-start;background:var(--blue-t);color:var(--ink);border-left:4px solid var(--blue);border-radius:6px;padding:.8rem 1rem;font-size:.92rem}
+.notice.warn{background:var(--warn-t);border-left-color:var(--warn)}
+.notice svg{flex:none;width:1.2rem;height:1.2rem;margin-top:.15rem;color:var(--blue)}
+.notice.warn svg{color:var(--warn)}
+
+/* ---------- Surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.card-pad{padding:1.1rem 1.2rem}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 1.2rem;border-bottom:1px solid var(--line2)}
+.card-h h2,.card-h h3{font-size:1.02rem;font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:600;padding:.18rem .65rem;border-radius:99px;white-space:nowrap}
+.badge::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:currentColor}
+.b-ok{background:var(--ok-t);color:var(--ok)}
+.b-go{background:var(--warn-t);color:var(--warn)}
+.b-no{background:var(--neu-t);color:var(--neu)}
+.b-info{background:var(--blue-t);color:var(--blue)}
+.b-info::before{display:none}
+.muted{color:var(--muted)}
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.1rem}
+.page-h h1{font-size:1.5rem;font-weight:700;line-height:1.3}
+.page-h p{color:var(--muted);font-size:.92rem}
+.back{display:inline-flex;align-items:center;gap:.35rem;color:var(--pri);font-weight:600;min-height:2.75rem;margin-bottom:.25rem}
+.back svg{width:1.1rem;height:1.1rem}
+
+/* ---------- Shell ---------- */
+.shell{min-height:100vh}
+.side{display:none}
+.appbar{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);
+  padding:.7rem 1rem;padding-top:calc(.7rem + env(safe-area-inset-top,0px));margin-top:calc(-1 * env(safe-area-inset-top,0px));
+  display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700}
+.brand small{display:block;font-weight:400;color:var(--muted);font-size:.78rem;line-height:1.2}
+.logo{width:2.4rem;height:2.4rem;border-radius:50%;background:var(--pri-t);display:grid;place-items:center;flex:none;color:var(--pri)}
+.logo svg{width:1.4rem;height:1.4rem}
+.tag{font-size:.75rem;background:var(--warn-t);color:var(--warn);padding:.15rem .6rem;border-radius:99px;font-weight:600}
+.page{max-width:1040px;margin:0 auto;padding:1.1rem 1rem calc(6.2rem + env(safe-area-inset-bottom,0px))}
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);
+  padding:.35rem .5rem calc(.35rem + env(safe-area-inset-bottom,0px))}
+.bnav-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:.25rem}
+.bn{display:grid;justify-items:center;gap:.1rem;padding:.45rem 0 .35rem;border-radius:10px;color:var(--muted);font-size:.8rem;font-weight:500;min-height:3.6rem}
+.bn svg{width:1.55rem;height:1.55rem}
+.bn[aria-current="page"]{color:var(--pri);background:var(--pri-t);font-weight:600}
+
+/* ---------- Patient banner ---------- */
+.pbanner{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:center;padding:1rem 1.2rem}
+.avatar{width:3.4rem;height:3.4rem;border-radius:50%;background:var(--pri);color:var(--on-pri);display:grid;place-items:center;font-weight:700;font-size:1.25rem}
+.pname{font-size:1.15rem;font-weight:700;line-height:1.3}
+.pmeta{display:flex;flex-wrap:wrap;gap:.2rem 1.2rem;margin-top:.25rem;font-size:.9rem;color:var(--muted)}
+.pmeta b{color:var(--ink);font-weight:600}
+
+/* ---------- Dashboard ---------- */
+.grid2{display:grid;gap:1rem;margin-top:1rem}
+.ringcard{display:grid;grid-template-columns:auto 1fr;gap:1.4rem;align-items:center;padding:1.3rem 1.4rem}
+.ring{position:relative;width:8.6rem;height:8.6rem}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .tr{stroke:var(--line2)}
+.ring .br{stroke:var(--pri);transition:stroke-dashoffset .9s cubic-bezier(.3,.9,.3,1)}
+.ring-t{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring-t b{font-size:2.1rem;font-weight:700;line-height:1}
+.ring-t span{font-size:.78rem;color:var(--muted);margin-top:.2rem}
+.kpis{display:grid;gap:.7rem}
+.kpi{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--line2)}
+.kpi:last-child{border-bottom:0;padding-bottom:0}
+.kpi span{color:var(--muted);font-size:.92rem}
+.kpi b{font-size:1.1rem}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;margin-top:.9rem}
+.wd{display:grid;justify-items:center;gap:.3rem;font-size:.78rem;color:var(--muted)}
+.wd i{width:1.9rem;height:1.9rem;border-radius:50%;display:grid;place-items:center;background:var(--neu-t);color:var(--neu);font-style:normal}
+.wd.ok i{background:var(--ok);color:#fff}
+.wd.today i{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--pri);background:var(--pri-t);color:var(--pri)}
+.wd.today.ok i{background:var(--ok);color:#fff}
+.wd.today{color:var(--ink);font-weight:600}
+.next{padding:1.2rem 1.3rem;display:grid;gap:.8rem}
+.next h3{font-size:1.15rem;font-weight:700;line-height:1.35}
+.next .sub{color:var(--muted);font-size:.92rem}
+.meas{width:100%;border-collapse:collapse}
+.meas th,.meas td{text-align:left;padding:.7rem 1.2rem;border-bottom:1px solid var(--line2);font-size:.95rem}
+.meas th{font-weight:500;color:var(--muted)}
+.meas td{font-weight:700;font-size:1.05rem}
+.meas td small{font-weight:400;color:var(--muted);font-size:.82rem;margin-left:.3rem}
+.meas tr:last-child th,.meas tr:last-child td{border-bottom:0}
+.empty{text-align:center;padding:2.2rem 1.2rem;display:grid;gap:.7rem;justify-items:center}
+.empty svg{width:3rem;height:3rem;color:var(--muted)}
+.empty h3{font-size:1.1rem}
+.empty p{color:var(--muted);max-width:36ch}
+
+/* ---------- Plan ---------- */
+.mod{margin-top:1rem;overflow:hidden}
+.mod-h{padding:.85rem 1.2rem;background:var(--surface2);border-bottom:1px solid var(--line);display:flex;gap:.7rem;align-items:baseline;flex-wrap:wrap}
+.mod-h b{font-size:.82rem;color:var(--pri);background:var(--pri-t);padding:.1rem .6rem;border-radius:6px;font-weight:700}
+.mod-h span{font-weight:600}
+.prow{display:grid;gap:.7rem;padding:1rem 1.2rem;border-bottom:1px solid var(--line2)}
+.prow:last-child{border-bottom:0}
+.prow-main{display:flex;justify-content:space-between;gap:.8rem;align-items:flex-start}
+.prow h3{font-size:1.02rem;font-weight:600;line-height:1.4}
+.rx{font-size:.88rem;color:var(--muted);margin-top:.15rem}
+.pbar{height:.5rem;background:var(--line2);border-radius:99px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--pri);border-radius:99px;transition:width .5s}
+.pbar.ok i{background:var(--ok)}
+.pbar-l{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:.3rem}
+.prow-act{display:flex;gap:.6rem;flex-wrap:wrap}
+
+/* ---------- Select ---------- */
+.sbox{position:relative}
+.sbox svg{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);width:1.2rem;height:1.2rem;color:var(--muted)}
+.sbox .inp{padding-left:2.6rem}
+.acc{margin-top:.8rem;overflow:hidden}
+.acc-h{width:100%;display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.9rem 1.2rem;text-align:left;min-height:3.4rem}
+.acc-h span{font-weight:600}
+.acc-h b{color:var(--pri);margin-right:.4rem}
+.acc-h svg{width:1.3rem;height:1.3rem;transition:transform .2s;flex:none}
+.acc-h[aria-expanded="true"] svg{transform:rotate(180deg)}
+.acc-b{border-top:1px solid var(--line2)}
+.sel{padding:1rem 1.2rem;border-bottom:1px solid var(--line2);display:grid;gap:.7rem}
+.sel:last-child{border-bottom:0}
+.sel-top{display:flex;gap:.9rem;align-items:flex-start}
+.chk{flex:none;width:1.7rem;height:1.7rem;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;background:var(--surface);margin-top:.1rem}
+.chk svg{width:1rem;height:1rem;opacity:0;color:var(--on-pri)}
+.chk[aria-checked="true"]{background:var(--pri);border-color:var(--pri)}
+.chk[aria-checked="true"] svg{opacity:1}
+.sel-t{flex:1}
+.sel-t h4{font-size:1rem;font-weight:600;line-height:1.4}
+.tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.4rem}
+.tags span{font-size:.78rem;background:var(--blue-t);color:var(--blue);padding:.1rem .55rem;border-radius:6px;font-weight:500}
+.sel-more{display:grid;gap:.8rem;padding-left:2.6rem}
+.fig-box{background:var(--surface2);border:1px solid var(--line2);border-radius:var(--r);aspect-ratio:200/110;max-width:360px}
+.fig-box svg{width:100%;height:100%;display:block}
+.nums{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;max-width:360px}
+.nums .lbl{margin-top:0}
+.sticky-save{position:sticky;bottom:calc(5rem + env(safe-area-inset-bottom,0px));margin-top:1.2rem}
+
+/* ---------- Detail ---------- */
+.video{position:relative;background:var(--surface2);border:1px solid var(--line);border-radius:12px;aspect-ratio:16/9;overflow:hidden}
+.video svg.fig{width:100%;height:100%;display:block}
+.play{position:absolute;right:.8rem;bottom:.8rem;display:flex;align-items:center;gap:.4rem;background:var(--surface);border:1px solid var(--line);border-radius:99px;min-height:2.6rem;padding:0 1rem;font-weight:600;font-size:.9rem}
+.play svg{width:1rem;height:1rem}
+.steps{display:grid;gap:.7rem;counter-reset:s}
+.step{display:grid;grid-template-columns:2rem 1fr;gap:.8rem;padding:.9rem 1.1rem;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.step::before{counter-increment:s;content:counter(s);width:2rem;height:2rem;border-radius:50%;background:var(--pri-t);color:var(--pri-d);display:grid;place-items:center;font-weight:700;font-size:.95rem}
+.step h4{font-weight:600}
+.step p{color:var(--muted);font-size:.95rem;margin-top:.1rem}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:.55rem 1.2rem}
+.dl dt{color:var(--muted);font-size:.92rem}
+.dl dd{font-weight:600;text-align:right}
+.sec-t{font-size:1.05rem;font-weight:700;margin:1.4rem 0 .7rem}
+
+/* ---------- Progress ---------- */
+.chips{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.4rem;margin-bottom:.8rem}
+.chip{flex:none;min-height:2.6rem;padding:0 1rem;border-radius:99px;border:1.5px solid var(--line);background:var(--surface);font-weight:500;font-size:.92rem}
+.chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:var(--on-pri);font-weight:600}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--neu-t);border-radius:var(--r);padding:.25rem;gap:.25rem}
+.seg button{min-height:2.6rem;border-radius:8px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px var(--shadow)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:var(--font)}
+.chart .g{stroke:var(--line2);stroke-width:1}
+.chart .ax{stroke:var(--line);stroke-width:1.2}
+.chart .ln{stroke:var(--blue);stroke-width:2.5;fill:none;stroke-linejoin:round}
+.chart .pt{fill:var(--surface);stroke:var(--blue);stroke-width:2.5}
+.chart .pt.hi{fill:var(--blue)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.8rem}
+.stat{padding:1rem 1.1rem}
+.stat span{font-size:.88rem;color:var(--muted)}
+.stat b{display:block;font-size:1.7rem;font-weight:700;line-height:1.3}
+.stat b.up{color:var(--ok)}
+.stat b.dn{color:var(--danger)}
+.sess{margin-top:.8rem;padding:1rem 1.2rem}
+.sess-h{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:.8rem}
+.sess-h b{font-size:1.05rem}
+.setrow{display:grid;grid-template-columns:5rem 1fr 3.6rem;gap:.8rem;align-items:center;padding:.5rem 0;border-top:1px solid var(--line2);font-size:.92rem}
+.setrow span:last-child{text-align:right;font-weight:600}
+
+/* ---------- Profile ---------- */
+.row{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding:.95rem 1.2rem;border-bottom:1px solid var(--line2)}
+.row:last-child{border-bottom:0}
+.row .seg{min-width:15rem}
+
+/* ---------- Auth ---------- */
+.auth{min-height:100vh;display:grid}
+.auth-brand{display:none}
+.auth-form{display:grid;place-items:start center;padding:1.4rem 1rem 2rem}
+.auth-card{width:100%;max-width:440px}
+.auth-card .logo{width:4rem;height:4rem;margin:.5rem auto 1rem}
+.auth-card .logo svg{width:2.4rem;height:2.4rem}
+.auth-card h1{font-size:1.6rem;font-weight:700;line-height:1.3}
+.auth-card .sub{color:var(--muted);margin-top:.2rem}
+.auth-panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.4rem 1.3rem 1.5rem;margin-top:1.2rem}
+.divider{display:flex;align-items:center;gap:.8rem;color:var(--muted);font-size:.88rem;margin:1.1rem 0}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.foot-note{text-align:center;color:var(--muted);font-size:.85rem;margin-top:1.4rem}
+.stepper{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:1rem 0 .5rem}
+.stepper i{height:.35rem;border-radius:99px;background:var(--line)}
+.stepper i.on{background:var(--pri)}
+.stp{display:flex;justify-content:space-between;align-items:center;gap:.6rem;font-size:.92rem}
+.stp b{color:var(--pri)}
+.idbox{min-height:3.2rem;border:1.5px dashed var(--line);border-radius:var(--r);display:grid;place-items:center;letter-spacing:.7em;font-size:1.4rem;font-weight:600;color:var(--muted);background:var(--surface2)}
+.btns{display:grid;gap:.7rem;margin-top:1.4rem}
+
+/* ---------- Figure ---------- */
+.fig .l{stroke:var(--pri);stroke-width:8;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.fig .s{stroke:var(--figs);stroke-width:6;stroke-linecap:round;fill:none}
+.fig .h{fill:var(--pri)}
+.fig .torso{transform-origin:80px 95px}
+.fig .shank{transform-origin:130px 95px}
+.fig .foot{transform-origin:130px 138px}
+.fig.play.v-trunk .torso{animation:lean 3.4s ease-in-out infinite}
+.fig.play.v-foot .foot{animation:flex 2.6s ease-in-out infinite}
+.fig.play.v-knee .shank{animation:ext 3.6s ease-in-out infinite}
+.fig.play.v-stand .torso{animation:fwd 3.4s ease-in-out infinite}
+@keyframes lean{0%,100%{transform:rotate(0)}30%,50%{transform:rotate(15deg)}80%{transform:rotate(-15deg)}}
+@keyframes flex{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(-30deg)}}
+@keyframes ext{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(-62deg)}}
+@keyframes fwd{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(22deg)}}
+
+/* ---------- Camera ---------- */
+.cam{position:fixed;inset:0;z-index:40;background:var(--bg);display:none;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.cam.open{display:flex}
+.cam-top{display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;background:var(--surface);border-bottom:1px solid var(--line)}
+.cam-top .t{flex:1;min-width:0}
+.cam-top b{display:block;line-height:1.3;font-size:1.02rem}
+.cam-top small{color:var(--muted)}
+.cam-main{flex:1;overflow-y:auto;display:grid;gap:1rem;padding:1rem;align-content:start}
+.stage{position:relative;background:#0E1C26;border-radius:12px;overflow:hidden;aspect-ratio:4/3.1;
+  background-image:linear-gradient(rgba(120,180,200,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(120,180,200,.07) 1px,transparent 1px);
+  background-size:32px 32px;border:1px solid #1E3342}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.rec{position:absolute;left:.8rem;top:.8rem;display:flex;align-items:center;gap:.45rem;background:rgba(10,20,28,.75);color:#E7F0F5;
+  font-size:.8rem;padding:.25rem .7rem;border-radius:99px;font-weight:500}
+.rec i{width:.55rem;height:.55rem;border-radius:50%;background:#34D399;animation:blink 1.4s infinite}
+.rec.off i{background:#9FB2C0;animation:none}
+@keyframes blink{50%{opacity:.25}}
+.panel{display:grid;gap:.8rem;align-content:start}
+.reads{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.read{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:.7rem .5rem;text-align:center}
+.read span{display:block;font-size:.82rem;color:var(--muted)}
+.read b{font-size:1.5rem;font-weight:700;line-height:1.3}
+.reps{padding:1rem 1.2rem}
+.reps-t{display:flex;justify-content:space-between;align-items:baseline}
+.reps-t span{color:var(--muted);font-size:.92rem}
+.reps-t b{font-size:2rem;font-weight:700}
+.reps-t b small{font-size:1.05rem;color:var(--muted);font-weight:500}
+.cam-act{display:grid;grid-template-columns:1fr 1.4fr auto;gap:.6rem}
+.iconbtn{width:3rem;height:3rem;border-radius:var(--r);border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.iconbtn svg{width:1.3rem;height:1.3rem}
+.pulse{animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--pri) 45%,transparent)}100%{box-shadow:0 0 0 .8rem transparent}}
+.check{list-style:none;display:grid;gap:.6rem;margin:.6rem 0 0}
+.check li{display:flex;gap:.7rem;align-items:flex-start}
+.check li i{flex:none;width:1.6rem;height:1.6rem;border-radius:50%;background:var(--pri-t);color:var(--pri-d);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:.85rem}
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(8,18,26,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:520px;background:var(--surface);border-radius:18px 18px 0 0;padding:1.4rem 1.3rem calc(1.3rem + env(safe-area-inset-bottom,0px));display:grid;gap:.9rem;justify-items:center;text-align:center;
+  animation:up .25s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.sheet .okc{width:3.6rem;height:3.6rem;border-radius:50%;background:var(--ok-t);color:var(--ok);display:grid;place-items:center}
+.sheet .okc svg{width:1.9rem;height:1.9rem}
+.sheet h2{font-size:1.3rem}
+.sheet .two{width:100%;margin-top:0}
+.sheet .stat{border:1px solid var(--line);border-radius:10px;text-align:center}
+.sheet .btns{width:100%;margin-top:.4rem}
+
+/* ---------- Breakpoints ---------- */
+@media (min-width:700px){
+  .page{padding:1.5rem 1.5rem 7rem}
+  .grid2.cols{grid-template-columns:1.25fr 1fr}
+  .cam-main{grid-template-columns:1.5fr 1fr;align-items:start;max-width:1100px;width:100%;margin:0 auto}
+  .stage{aspect-ratio:4/3.1}
+  .auth-form{place-items:center}
+}
+@media (min-width:1024px){
+  .shell{display:grid;grid-template-columns:260px 1fr}
+  .side{display:flex;flex-direction:column;position:sticky;top:0;height:100vh;background:var(--surface);border-right:1px solid var(--line);padding:1.2rem 1rem}
+  .side .brand{padding:.2rem .4rem 1.2rem;border-bottom:1px solid var(--line2);margin-bottom:1rem}
+  .side nav{display:grid;gap:.25rem}
+  .sn{display:flex;align-items:center;gap:.8rem;min-height:3rem;padding:0 .9rem;border-radius:10px;color:var(--muted);font-weight:500;text-align:left}
+  .sn svg{width:1.3rem;height:1.3rem}
+  .sn:hover{background:var(--surface2)}
+  .sn[aria-current="page"]{background:var(--pri-t);color:var(--pri-d);font-weight:600}
+  .side-foot{margin-top:auto;display:grid;gap:.6rem}
+  .side-pt{display:flex;gap:.7rem;align-items:center;padding:.7rem;border:1px solid var(--line);border-radius:12px}
+  .side-pt .avatar{width:2.6rem;height:2.6rem;font-size:1rem}
+  .side-pt b{display:block;font-size:.92rem;line-height:1.3}
+  .side-pt small{color:var(--muted)}
+  .appbar{display:none}
+  .bnav{display:none}
+  .page{padding:2rem 2.2rem 3rem}
+  .page-h h1{font-size:1.7rem}
+  .auth-brand{display:flex;flex-direction:column;justify-content:space-between;background:var(--brandg);color:#fff;padding:3rem}
+  .auth-brand h2{font-size:2rem;line-height:1.35;font-weight:700;max-width:16ch}
+  .auth-brand ul{display:grid;gap:1rem;margin-top:2rem;max-width:38ch}
+  .auth-brand li{display:flex;gap:.8rem;opacity:.92}
+  .auth-brand li svg{flex:none;width:1.4rem;height:1.4rem;margin-top:.15rem}
+  .auth-brand .brand .logo{background:rgba(255,255,255,.14);color:#fff}
+  .auth-brand .brand small{color:rgba(255,255,255,.7)}
+  .auth-brand p.fine{font-size:.82rem;opacity:.7}
+  .sticky-save{position:static}
+  .sheet{border-radius:18px;margin-bottom:auto;margin-top:auto}
+  .scrim{align-items:center}
+}
+@media (max-width:520px){
+  .ringcard{grid-template-columns:1fr;justify-items:center;text-align:left}
+  .ringcard .kpis{width:100%}
+  .reads{gap:.4rem}
+  .read b{font-size:1.25rem}
+  .cam-act{grid-template-columns:1fr 1fr}
+  .cam-act .iconbtn{grid-column:1/-1;width:100%}
+  .row .seg{min-width:100%}
+  .dl dd{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){
+  .fig.play .torso,.fig.play .shank,.fig.play .foot{animation:none}
+  .ring .br,.pbar i{transition:none}
+  .rec i,.pulse{animation:none}
+  .sheet{animation:none}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="cam" class="cam" role="dialog" aria-modal="true" aria-label="การประเมินท่าทางด้วยกล้อง"></div>
+
+<script>
+/* ============ Data ============ */
+const MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const WD=['อา','จ','อ','พ','พฤ','ศ','ส'];
+const TODAY=new Date(2026,9,2);
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const fDate=d=>d.getDate()+' '+MON[d.getMonth()];
+const fFull=d=>d.getDate()+' '+MON[d.getMonth()]+' '+(d.getFullYear()+543);
+
+const MODS=[
+ {id:1,name:'การควบคุมลำตัวและการทำงานของขาเบื้องต้น',ex:['trunk','ankle']},
+ {id:2,name:'การควบคุมลำตัวและการเคลื่อนไหวของขา',ex:['legraise','sit2stand','kneeext']},
+ {id:3,name:'การยืนและเริ่มเดิน',ex:['stand']},
+ {id:4,name:'การเดินและการทรงตัวขั้นสูง',ex:['walkline']},
+ {id:5,name:'การเดินขั้นสูงและเคลื่อนไหวคล่องตัว',ex:['stepover']}
+];
+const EX={
+ trunk:{mod:1,v:'trunk',name:'ท่าบริหารลำตัวขณะนั่ง',tags:['ลำตัว','ไหล่','สะโพก','การทรงตัว'],
+  desc:'ฝึกการเอียงและหมุนลำตัวขณะนั่ง เพื่อเสริมความมั่นคงของแกนกลางลำตัว',
+  steps:[['จัดท่าเตรียมพร้อม','นั่งบนเก้าอี้ให้เต็มก้น วางเท้าทั้งสองข้างบนพื้น หลังตรง และให้กล้องเห็นลำตัวด้านข้างได้ชัดเจน'],['เอียงลำตัว','เอียงลำตัวไปด้านข้างช้าๆ โดยไม่ยกก้นจากเก้าอี้ ค้างไว้ 2 วินาที'],['กลับสู่ท่าตรง','ค่อยๆ กลับมาอยู่ตรงกลาง นับเป็น 1 ครั้ง แล้วทำซ้ำ']]},
+ ankle:{mod:1,v:'foot',name:'ท่ากระดกข้อเท้า',tags:['ข้อเท้า','เท้า','การเคลื่อนไหวปลายเท้า'],
+  desc:'ฝึกการกระดกและวางปลายเท้า เพื่อกระตุ้นการเคลื่อนไหวของข้อเท้า',
+  steps:[['จัดท่าเตรียมพร้อม','นั่งหลังตรง วางส้นเท้าบนพื้น ให้กล้องเห็นเท้าและข้อเท้าชัดเจน'],['กระดกปลายเท้าขึ้น','กระดกปลายเท้าขึ้นช้าๆ ให้ส้นเท้ายังติดพื้น ค้างไว้ 2 วินาที'],['วางเท้าลง','วางปลายเท้ากลับลงช้าๆ นับเป็น 1 ครั้ง']]},
+ legraise:{mod:2,v:'knee',name:'ท่ายกขาขณะนั่ง',tags:['สะโพก','เข่า','ต้นขา','การทรงตัว'],
+  desc:'ฝึกการยกต้นขาขณะนั่ง เพื่อเสริมกำลังกล้ามเนื้อสะโพกและต้นขา',
+  steps:[['จัดท่าเตรียมพร้อม','นั่งหลังตรง มือวางบนต้นขา ให้กล้องเห็นลำตัวด้านข้าง'],['ยกขา','ยกเข่าข้างที่ต้องการฝึกขึ้นช้าๆ ค้างไว้ 2 วินาที'],['วางขาลง','วางเท้ากลับลงสู่พื้นช้าๆ นับเป็น 1 ครั้ง']]},
+ sit2stand:{mod:2,v:'stand',name:'ท่าลุกยืนจากท่านั่ง',tags:['สะโพก','เข่า','ข้อเท้า','ลำตัว','การทรงตัว'],
+  desc:'ฝึกการลุกขึ้นยืนและนั่งลง เพื่อเพิ่มกำลังขาและการทรงตัว',
+  steps:[['จัดท่าเตรียมพร้อม','นั่งขอบเก้าอี้ที่มั่นคง วางเท้าห่างกันเท่าช่วงไหล่ ให้กล้องเห็นทั้งตัวด้านข้าง'],['โน้มตัวไปข้างหน้า','โน้มลำตัวไปข้างหน้าเล็กน้อย โดยให้เท้าทั้งสองข้างวางบนพื้น'],['ลุกขึ้นยืน','ใช้แรงขาลุกขึ้นยืนตรง แล้วค่อยๆ นั่งลง นับเป็น 1 ครั้ง']]},
+ kneeext:{mod:2,v:'knee',name:'ท่านั่งเหยียดขาบนเก้าอี้',tags:['เข่า','ต้นขา','สะโพก'],
+  desc:'ฝึกการเหยียดเข่าขณะนั่ง เพื่อเสริมกำลังกล้ามเนื้อต้นขาด้านหน้า',
+  steps:[['จัดท่าเตรียมพร้อม','นั่งหลังตรง พิงพนักเก้าอี้ วางเท้าบนพื้น ให้กล้องเห็นขาด้านข้างชัดเจน'],['เหยียดเข่า','เหยียดเข่าข้างที่ฝึกออกไปด้านหน้าช้าๆ จนเข่าตรงมากที่สุดเท่าที่ทำได้ ค้างไว้ 2 วินาที'],['งอเข่ากลับ','งอเข่ากลับสู่ท่าเดิมช้าๆ นับเป็น 1 ครั้ง']]},
+ stand:{mod:3,v:'stand',name:'ท่ายืนทรงตัวสองขา (ตัวอย่าง)',tags:['การทรงตัว','ขา','ลำตัว'],
+  desc:'ฝึกการยืนทรงตัวโดยมีที่จับเพื่อความปลอดภัย',
+  steps:[['จัดท่าเตรียมพร้อม','ยืนหน้าโต๊ะหรือราวจับที่มั่นคง วางเท้าห่างกันเท่าช่วงไหล่'],['ยืนทรงตัว','ยืนตัวตรง ลงน้ำหนักเท่ากันทั้งสองขา'],['ผ่อนคลาย','นั่งพัก แล้วทำซ้ำตามจำนวนครั้ง']]},
+ walkline:{mod:4,v:'stand',name:'ท่าเดินตามแนวเส้นตรง (ตัวอย่าง)',tags:['การเดิน','การทรงตัว'],
+  desc:'ฝึกการเดินเป็นแนวเส้นตรง โดยมีผู้ดูแลอยู่ใกล้ชิด',
+  steps:[['จัดพื้นที่','เตรียมพื้นที่โล่ง พื้นไม่ลื่น และมีผู้ดูแลอยู่ข้างๆ'],['เดินตามเส้น','เดินช้าๆ ตามแนวเส้นตรง'],['หยุดพัก','หยุดพักเมื่อรู้สึกเหนื่อย แล้วทำซ้ำ']]},
+ stepover:{mod:5,v:'stand',name:'ท่าเดินก้าวข้ามสิ่งกีดขวาง (ตัวอย่าง)',tags:['การเดินขั้นสูง','การทรงตัว'],
+  desc:'ฝึกการก้าวข้ามสิ่งกีดขวางเตี้ย เพื่อเพิ่มความคล่องตัว',
+  steps:[['จัดพื้นที่','วางสิ่งกีดขวางเตี้ยบนพื้นโล่ง มีผู้ดูแลใกล้ชิด'],['ก้าวข้าม','ยกเท้าก้าวข้ามช้าๆ ทีละข้าง'],['กลับตัว','กลับตัวอย่างระมัดระวัง แล้วทำซ้ำ']]}
+};
+
+/* ============ State ============ */
+const DEMO={name:'นายสมชาย ใจดี',age:58,sex:'ชาย',dx:'โรคหลอดเลือดสมองตีบ',onset:'12 มิ.ย. 2569',idm:'1-2345-xxxxx-12-9',comorb:'ไม่มี'};
+const S={
+  route:'login',user:null,plan:[],cfg:{},done:{},rec:{},
+  login:{id:'1234567890129',pw:'1234',show:false},
+  reg:{step:1,id:'',pw:'',pw2:'',user:'',name:'',dob:'',sex:'',comorb:'',type:'',onset:'',show:false},
+  err:'',open:{1:true},draft:[],draftCfg:{},exp:{},q:'',
+  pexId:'trunk',prange:'7',ptab:'graph',detailId:'trunk',playing:true,
+  size:'',theme:'',
+};
+function demoLogin(){
+  S.user={...DEMO};S.plan=['trunk','ankle','kneeext'];
+  S.cfg={trunk:{sets:3,reps:5},ankle:{sets:3,reps:5},kneeext:{sets:3,reps:5}};
+  S.done={trunk:3,ankle:2,kneeext:0};S.rec={trunk:[5,5,5],ankle:[5,4],kneeext:[]};
+  S.pexId='trunk';
+}
+const $=s=>document.querySelector(s);
+const totalSets=()=>S.plan.reduce((a,id)=>a+S.cfg[id].sets,0);
+const doneSets=()=>S.plan.reduce((a,id)=>a+Math.min(S.done[id]||0,S.cfg[id].sets),0);
+const pct=()=>totalSets()?Math.round(doneSets()/totalSets()*100):0;
+const exStatus=id=>{const d=S.done[id]||0,t=S.cfg[id].sets;return d>=t?'ok':d>0?'go':'no'};
+const nextEx=()=>S.plan.find(id=>exStatus(id)!=='ok');
+const BADGE={ok:['b-ok','เสร็จสิ้น'],go:['b-go','กำลังดำเนินการ'],no:['b-no','ยังไม่ดำเนินการ']};
+
+/* ============ Icons ============ */
+const I={
+ logo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="2"/><path d="M12 8l-2 5 3 3-1 5M10 13l-4 1M12 8l4 3 3 0"/></svg>',
+ home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
+ train:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 4V2.5h6V4M8 10h8M8 14h8M8 18h5"/></svg>',
+ prog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 16l4-5 4 3 6-8"/></svg>',
+ me:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>',
+ eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+ eyeoff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0112 5c6 0 10 7 10 7a17 17 0 01-3.2 4M6.5 6.6A17 17 0 002 12s4 7 10 7a10 10 0 004.4-1M9.9 9.9a3 3 0 004.2 4.2"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+ arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+ chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+ tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
+ info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>',
+ search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+ reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-7 3.4M3 4v5h5"/></svg>',
+ play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>',
+ pause:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+ out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/></svg>',
+ shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+ clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h6"/></svg>',
+ cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>'
+};
+
+/* ============ Figure ============ */
+function fig(v,play){
+  return `<svg class="fig v-${v} ${play?'play':''}" viewBox="0 0 200 110" preserveAspectRatio="xMidYMid meet" role="img" aria-label="ภาพประกอบท่าฝึก">
+  <g transform="translate(0,-20)">
+  <path class="s" d="M52 62V100H112M62 100v34M104 100v34"/>
+  <path class="s" d="M20 136H186"/>
+  <path class="l" d="M80 95H130"/>
+  <g class="shank"><path class="l" d="M130 95V138"/><g class="foot"><path class="l" d="M130 138H152"/></g></g>
+  <g class="torso"><path class="l" d="M80 95V50"/><circle class="h" cx="80" cy="32" r="13"/><path class="l" style="stroke-width:6" d="M80 58L108 86"/></g>
+  </g></svg>`;
+}
+
+/* ============ Views ============ */
+function field(label,id,val,opts={}){
+  const t=opts.type||'text';
+  return `<label class="lbl" for="${id}">${label}${opts.req?' <span class="req">*</span>':''}</label>
+  <input class="inp" id="${id}" type="${t}" value="${val||''}" ${opts.ph?`placeholder="${opts.ph}"`:''} ${opts.ro?'readonly':''} ${opts.num?'inputmode="numeric"':''} ${opts.max?`maxlength="${opts.max}"`:''} ${opts.k?`data-k="${opts.k}"`:''} autocomplete="off">${opts.hint?`<p class="hint">${opts.hint}</p>`:''}`;
+}
+function pwField(label,id,val,k,show){
+  return `<label class="lbl" for="${id}">${label}</label><div class="inp-wrap"><input class="inp" id="${id}" type="${show?'text':'password'}" value="${val||''}" data-k="${k}" autocomplete="off">
+  <button class="eye" data-act="eye" data-arg="${k.split('.')[0]}" aria-label="แสดงหรือซ่อนรหัสผ่าน">${show?I.eyeoff:I.eye}</button></div>`;
+}
+const errBox=()=>S.err?`<div class="err" role="alert">${I.info.replace('<svg','<svg width="18" height="18" style="flex:none;margin-top:2px"')}<span>${S.err}</span></div>`:'';
+
+function authShell(inner){
+  return `<div class="auth">
+  <section class="auth-form"><div class="auth-card">${inner}</div></section></div>`;
+}
+
+function loginView(){
+  const L=S.login;
+  return authShell(`
+  <div class="logo">${I.logo}</div>
+  <h1 style="text-align:center">เข้าสู่ระบบ</h1>
+  <p class="sub" style="text-align:center">เข้าสู่ระบบเพื่อเริ่มการฟื้นฟูของคุณ</p>
+  <div class="auth-panel">
+    ${field('เลขบัตรประจำตัวประชาชน','l-id',L.id,{k:'login.id',num:1,max:13,ph:'กรอกเลข 13 หลัก'})}
+    ${pwField('รหัสผ่าน','l-pw',L.pw,'login.pw',L.show)}
+    <div style="text-align:right;margin-top:.3rem"><button class="btn-text" data-act="forgot">ลืมรหัสผ่าน?</button></div>
+    ${errBox()}
+    <div class="btns" style="margin-top:.8rem"><button class="btn btn-pri btn-block" data-act="login">เข้าสู่ระบบ</button></div>
+    <div class="divider">ยังไม่เคยเข้าใช้งาน?</div>
+    <button class="btn btn-sec btn-block" data-act="toreg">ลงทะเบียนผู้ป่วยใหม่</button>
+  </div>
+  <p class="foot-note">ต้นแบบสำหรับทดลอง · ข้อมูลกรอกไว้ให้แล้ว กดเข้าสู่ระบบได้เลย</p>`);
+}
+
+const REGLBL=['','ยืนยันตัวตน','ยืนยันตัวตน','ยืนยันตัวตน','ข้อมูลทั่วไป','ข้อมูลสุขภาพ'];
+function regPhase(s){return s<=3?1:s===4?2:3}
+function regView(){
+  const R=S.reg,st=R.step,ph=regPhase(st);
+  let body='';
+  if(st===1){
+    body=`${field('เลขบัตรประจำตัวประชาชน','r-id',R.id,{k:'reg.id',num:1,max:13,req:1,ph:'กรอกเลข 13 หลัก',hint:'ใช้ยืนยันตัวตนกับทะเบียนผู้ป่วยของสถานพยาบาล'})}
+    ${errBox()}<div class="btns"><button class="btn btn-pri btn-block" data-act="reg-next">ถัดไป ${I.arrow}</button></div>`;
+  }else if(st===2){
+    body=`<label class="lbl">รหัสผ่านเริ่มต้นของคุณ</label><div class="idbox" aria-label="รหัสผ่านเริ่มต้น ซ่อนไว้">XXXX</div>
+    <div class="notice warn" style="margin-top:1rem">${I.info}<span>รหัสผ่านเริ่มต้นคือเลข 4 หลักท้ายของบัตรประชาชน แนะนำให้เปลี่ยนเป็นรหัสผ่านของคุณเองเพื่อความปลอดภัย</span></div>
+    <div class="btns"><button class="btn btn-sec btn-block" data-act="reg-go" data-arg="3">เปลี่ยนรหัสผ่าน</button>
+    <button class="btn btn-pri btn-block" data-act="reg-go" data-arg="4">ใช้รหัสผ่านเริ่มต้น</button></div>`;
+  }else if(st===3){
+    body=`${pwField('รหัสผ่านใหม่','r-pw',R.pw,'reg.pw',R.show)}
+    ${pwField('ยืนยันรหัสผ่านอีกครั้ง','r-pw2',R.pw2,'reg.pw2',R.show)}
+    ${field('ชื่อผู้ใช้','r-user',R.user,{k:'reg.user',ph:'เช่น somchai01'})}
+    ${errBox()}<div class="btns"><button class="btn btn-pri btn-block" data-act="reg-next">ขั้นตอนถัดไป</button></div>`;
+  }else if(st===4){
+    const age=calcAge(R.dob);
+    body=`${field('ชื่อ - นามสกุล','r-name',R.name,{k:'reg.name',req:1,ph:'เช่น นายสมชาย ใจดี'})}
+    ${field('วันเดือนปีเกิด','r-dob',R.dob,{k:'reg.dob',type:'date',req:1})}
+    ${field('อายุ (ปี)','r-age',age!==''?age:'',{ro:1,ph:'ระบบคำนวณอัตโนมัติ'})}
+    <label class="lbl" for="r-sex">เพศ <span class="req">*</span></label>
+    <select class="inp" id="r-sex" data-k="reg.sex"><option value="">เลือกเพศ</option>${['ชาย','หญิง'].map(x=>`<option ${R.sex===x?'selected':''}>${x}</option>`).join('')}</select>
+    ${errBox()}<div class="btns"><button class="btn btn-pri btn-block" data-act="reg-next">ขั้นตอนถัดไป</button></div>`;
+  }else{
+    body=`${field('โรคประจำตัวอื่นๆ','r-co',R.comorb,{k:'reg.comorb',ph:'ไม่มีโรคประจำตัวอื่นๆ'})}
+    <label class="lbl" for="r-ty">ประเภทโรคหลอดเลือดสมอง <span class="req">*</span></label>
+    <select class="inp" id="r-ty" data-k="reg.type"><option value="">เลือกประเภทโรคหลอดเลือดสมอง</option>${['โรคหลอดเลือดสมองตีบ','โรคหลอดเลือดสมองแตก','ไม่ทราบ / รอแพทย์ระบุ'].map(x=>`<option ${R.type===x?'selected':''}>${x}</option>`).join('')}</select>
+    ${field('วันที่เป็นโรคหลอดเลือดสมอง','r-on',R.onset,{k:'reg.onset',type:'date',req:1})}
+    <div class="notice" style="margin-top:1.2rem">${I.info}<span>ข้อมูลนี้ช่วยให้ทีมกายภาพเข้าใจบริบทของผู้ป่วย และวางแผนการฝึกได้เหมาะสมยิ่งขึ้น</span></div>
+    ${errBox()}<div class="btns"><button class="btn btn-pri btn-block" data-act="reg-next">ยืนยันการลงทะเบียน</button></div>`;
+  }
+  const backTo=st===1?'tologin':'reg-back';
+  return authShell(`
+  <button class="back" data-act="${backTo}">${I.back}${st===1?'กลับหน้าเข้าสู่ระบบ':'ย้อนกลับ'}</button>
+  <h1>ลงทะเบียนผู้ป่วยใหม่</h1>
+  <div class="stepper" aria-hidden="true">${[1,2,3].map(n=>`<i class="${n<=ph?'on':''}"></i>`).join('')}</div>
+  <div class="stp"><span><b>${ph}.</b> ${REGLBL[st]}</span><span class="badge b-info">ขั้นตอนที่ ${ph} จาก 3</span></div>
+  <div class="auth-panel" style="margin-top:.9rem">${body}</div>`);
+}
+function calcAge(dob){
+  if(!dob)return'';const b=new Date(dob);if(isNaN(b))return'';
+  let a=TODAY.getFullYear()-b.getFullYear();
+  if(TODAY.getMonth()<b.getMonth()||(TODAY.getMonth()===b.getMonth()&&TODAY.getDate()<b.getDate()))a--;
+  return a>=0&&a<130?a:'';
+}
+
+/* ----- Shell ----- */
+const NAV=[['home','หน้าหลัก','home'],['train','แผนการฝึก','train'],['prog','ความก้าวหน้า','prog'],['me','โปรไฟล์','me']];
+const navKey=r=>({select:'train',detail:'train'}[r]||r);
+function shell(inner,title){
+  const k=navKey(S.route);
+  return `<div class="shell">
+  <aside class="side">
+    <div class="brand"><div class="logo">${I.logo}</div><div>Gait Analysis<small>ระบบฟื้นฟูผู้ป่วย</small></div></div>
+    <nav aria-label="เมนูหลัก">${NAV.map(([r,t,i])=>`<button class="sn" data-act="nav" data-arg="${r}" ${k===r?'aria-current="page"':''}>${I[i]}${t}</button>`).join('')}</nav>
+    <div class="side-foot">
+      <div class="side-pt"><div class="avatar">${S.user.name.replace(/^(นาย|นางสาว|นาง)\s*/,'').charAt(0)}</div><div><b>${S.user.name}</b><small>ผู้ป่วย</small></div></div>
+      <button class="btn btn-line btn-sm" data-act="logout">${I.out}ออกจากระบบ</button>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="appbar"><div class="brand"><div class="logo">${I.logo}</div><div>${title}<small>Gait Analysis</small></div></div><span class="tag">ข้อมูลตัวอย่าง</span></header>
+    <main class="page" id="page">${inner}</main>
+  </div>
+  <nav class="bnav" aria-label="เมนูหลัก"><div class="bnav-in">${NAV.map(([r,t,i])=>`<button class="bn" data-act="nav" data-arg="${r}" ${k===r?'aria-current="page"':''}>${I[i]}<span>${t}</span></button>`).join('')}</div></nav>
+  </div>`;
+}
+
+function banner(){
+  const u=S.user;
+  return `<section class="card pbanner"><div class="avatar">${u.name.replace(/^(นาย|นางสาว|นาง)\s*/,'').charAt(0)}</div>
+  <div><div class="pname">${u.name}</div>
+  <div class="pmeta"><span>อายุ <b>${u.age||'-'} ปี</b> · ${u.sex||'-'}</span><span>การวินิจฉัย <b>${u.dx||'-'}</b></span><span>เริ่มมีอาการ <b>${u.onset||'-'}</b></span></div></div></section>`;
+}
+
+function homeView(){
+  const C=2*Math.PI*52,n=doneSets(),t=totalSets(),p=pct(),nx=nextEx();
+  if(!S.plan.length){
+    return banner()+`<section class="card empty" style="margin-top:1rem">${I.clip}<h3>ยังไม่มีท่าการฝึกในแผน</h3>
+    <p>เลือกท่าที่แพทย์หรือนักกายภาพบำบัดแนะนำ เพื่อเริ่มติดตามความก้าวหน้า</p>
+    <button class="btn btn-pri" data-act="toselect">เลือกท่าการฝึก</button></section>`;
+  }
+  const week=[-6,-5,-4,-3,-2,-1,0].map(o=>{const d=addDays(TODAY,o);const isT=o===0;const ok=o>=-5&&o<0||(isT&&n>=t);
+    return `<div class="wd ${ok?'ok':''} ${isT?'today':''}"><span>${WD[d.getDay()]}</span><i>${ok?I.tick.replace('<svg','<svg width="14" height="14"'):d.getDate()}</i></div>`}).join('');
+  const exDone=S.plan.filter(id=>exStatus(id)==='ok').length;
+  const streak=5+(n>=t?1:0);
+  const nx_html=nx?`<section class="card next"><div><span class="badge b-info">ท่าถัดไป</span></div>
+    <div><h3>${EX[nx].name}</h3><p class="sub">เซตที่ ${Math.min((S.done[nx]||0)+1,S.cfg[nx].sets)} จาก ${S.cfg[nx].sets} · ${S.cfg[nx].reps} ครั้งต่อเซต</p></div>
+    <div class="prow-act"><button class="btn btn-pri" data-act="start" data-arg="${nx}">เริ่มประเมินท่านี้ ${I.arrow}</button><button class="btn btn-line" data-act="detail" data-arg="${nx}">วิธีทำท่านี้</button></div></section>`
+   :`<section class="card next"><div><span class="badge b-ok">เสร็จสิ้น</span></div><div><h3>ฝึกครบตามแผนของวันนี้แล้ว</h3><p class="sub">ดูผลการประเมินได้ที่หน้าความก้าวหน้า</p></div>
+    <div class="prow-act"><button class="btn btn-pri" data-act="nav" data-arg="prog">ดูความก้าวหน้า ${I.arrow}</button></div></section>`;
+  return banner()+`
+  <div class="grid2 cols">
+    <section class="card ringcard">
+      <div class="ring"><svg viewBox="0 0 120 120"><circle class="tr" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
+        <circle class="br" id="ringbar" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-t="${C*(1-p/100)}"/></svg>
+        <div class="ring-t"><b>${p}%</b><span>ความคืบหน้าวันนี้</span></div></div>
+      <div class="kpis">
+        <div class="kpi"><span>เซตที่ทำแล้ว</span><b>${n} / ${t}</b></div>
+        <div class="kpi"><span>ท่าที่เสร็จสิ้น</span><b>${exDone} / ${S.plan.length}</b></div>
+        <div class="kpi"><span>ฝึกต่อเนื่อง</span><b>${streak} วัน</b></div>
+      </div>
+    </section>
+    <div style="display:grid;gap:1rem;align-content:start">
+      ${nx_html}
+      <section class="card card-pad"><b style="font-size:.95rem">การฝึก 7 วันล่าสุด</b><div class="week">${week}</div></section>
+    </div>
+  </div>
+  <section class="card" style="margin-top:1rem;overflow:hidden">
+    <div class="card-h"><h2>ผลการวัดล่าสุด</h2><span class="badge b-info">${fDate(addDays(TODAY,-1))}</span></div>
+    <table class="meas"><tbody>
+      <tr><th>มุมข้อเข่า</th><td>85<small>องศา</small></td></tr>
+      <tr><th>มุมข้อสะโพก</th><td>88<small>องศา</small></td></tr>
+      <tr><th>มุมลำตัว (เทียบแนวดิ่ง)</th><td>15<small>องศา</small></td></tr>
+    </tbody></table>
+    <div class="card-pad" style="border-top:1px solid var(--line2)"><p class="hint" style="margin:0">ค่ามุมได้จากการวิเคราะห์ภาพด้วยกล้อง เพื่อประกอบการติดตามผลของทีมผู้รักษา ไม่ใช่การวินิจฉัย</p></div>
+  </section>`;
+}
+
+function trainView(){
+  const head=`<div class="page-h"><div><h1>แผนการฝึกวันนี้</h1><p>${fFull(TODAY)} · ${doneSets()}/${totalSets()} เซต · ${S.plan.filter(i=>exStatus(i)==='ok').length}/${S.plan.length} ท่า</p></div>
+  <button class="btn btn-sec btn-sm" data-act="toselect">แก้ไขแผน</button></div>`;
+  if(!S.plan.length) return head+`<section class="card empty">${I.clip}<h3>ยังไม่มีท่าการฝึกในแผน</h3><p>เลือกท่าที่แพทย์หรือนักกายภาพบำบัดแนะนำ</p><button class="btn btn-pri" data-act="toselect">เลือกท่าการฝึก</button></section>`;
+  const mods=MODS.filter(m=>m.ex.some(e=>S.plan.includes(e)));
+  return head+`<div class="notice">${I.info}<span>ท่าฝึกทั้งหมดกำหนดตามคำแนะนำของแพทย์ หากมีอาการเวียนศีรษะ เจ็บหน้าอก หรือปวดผิดปกติ ให้หยุดทันทีและแจ้งเจ้าหน้าที่</span></div>`+
+  mods.map(m=>`<section class="card mod"><div class="mod-h"><b>Module ${m.id}</b><span>${m.name}</span></div>
+  ${m.ex.filter(e=>S.plan.includes(e)).map(id=>{
+    const c=S.cfg[id],d=Math.min(S.done[id]||0,c.sets),st=exStatus(id),[bc,bt]=BADGE[st];
+    return `<div class="prow"><div class="prow-main"><div><h3>${EX[id].name}</h3><div class="rx">กำหนด ${c.sets} เซต × ${c.reps} ครั้ง</div></div><span class="badge ${bc}">${bt}</span></div>
+    <div><div class="pbar-l"><span>ทำแล้ว</span><span>${d} / ${c.sets} เซต</span></div><div class="pbar ${st==='ok'?'ok':''}"><i style="width:${d/c.sets*100}%"></i></div></div>
+    <div class="prow-act">${st==='ok'?`<button class="btn btn-soft btn-sm" data-act="viewprog" data-arg="${id}">ดูผล</button>`:`<button class="btn btn-pri btn-sm" data-act="start" data-arg="${id}">${st==='go'?'ทำต่อ':'เริ่มทำ'}</button>`}
+    <button class="btn btn-line btn-sm" data-act="detail" data-arg="${id}">รายละเอียด</button></div></div>`}).join('')}</section>`).join('');
+}
+
+function selectView(){
+  const q=S.q.trim();
+  const mods=MODS.map(m=>({...m,list:m.ex.filter(e=>!q||EX[e].name.includes(q)||EX[e].tags.some(t=>t.includes(q)))})).filter(m=>m.list.length);
+  return `<button class="back" data-act="selback">${I.back}กลับสู่แผนการฝึก</button>
+  <div class="page-h"><div><h1>เลือกท่าการทำกายภาพบำบัด</h1><p>เลือกอยู่ ${S.draft.length} ท่า</p></div></div>
+  <div class="notice warn">${I.info}<span>กรุณาเลือกท่าให้ตรงตามที่แพทย์ได้แนะนำไว้</span></div>
+  <div class="sbox" style="margin-top:1rem">${I.search}<input class="inp" id="q" value="${S.q}" placeholder="ค้นหาชื่อท่าหรือส่วนของร่างกาย" aria-label="ค้นหาท่า"></div>
+  ${mods.length?mods.map(m=>{const open=q?true:!!S.open[m.id];const cnt=m.ex.filter(e=>S.draft.includes(e)).length;
+   return `<section class="card acc"><button class="acc-h" data-act="acc" data-arg="${m.id}" aria-expanded="${open}"><span><b>Module ${m.id}</b>${m.name}</span><span style="display:flex;gap:.6rem;align-items:center">${cnt?`<span class="badge b-info">${cnt}</span>`:''}${I.chev}</span></button>
+   ${open?`<div class="acc-b">${m.list.map(id=>{const on=S.draft.includes(id),e=EX[id],x=S.exp[id],c=S.draftCfg[id]||{sets:3,reps:5};
+    return `<div class="sel"><div class="sel-top"><button class="chk" role="checkbox" aria-checked="${on}" aria-label="เลือก ${e.name}" data-act="chk" data-arg="${id}">${I.tick}</button>
+    <div class="sel-t"><h4>${e.name}</h4><div class="tags">${e.tags.map(t=>`<span>${t}</span>`).join('')}</div></div></div>
+    <div style="padding-left:2.6rem"><button class="btn-text" style="padding:0" data-act="exp" data-arg="${id}">${x?'ซ่อนรายละเอียด':'ดูรายละเอียด'}</button></div>
+    ${x?`<div class="sel-more"><div class="fig-box">${fig(e.v,false)}</div><p class="muted" style="font-size:.92rem">${e.desc}</p>
+      <div class="nums"><div><label class="lbl" for="s-${id}">จำนวนเซต</label><input class="inp" id="s-${id}" type="number" min="1" max="6" value="${c.sets}" data-cfg="${id}.sets"></div>
+      <div><label class="lbl" for="r-${id}">จำนวนครั้งต่อเซต</label><input class="inp" id="r-${id}" type="number" min="1" max="20" value="${c.reps}" data-cfg="${id}.reps"></div></div></div>`:''}</div>`}).join('')}</div>`:''}</section>`}).join(''):`<p class="muted" style="margin-top:1.4rem;text-align:center">ไม่พบท่าที่ตรงกับคำค้นหา</p>`}
+  <div class="sticky-save"><button class="btn btn-pri btn-block" data-act="selsave" ${S.draft.length?'':'disabled'}>บันทึกท่าที่เลือก</button></div>`;
+}
+
+function detailView(){
+  const id=S.detailId,e=EX[id],c=S.cfg[id]||S.draftCfg[id]||{sets:3,reps:5},m=MODS.find(x=>x.id===e.mod);
+  const inPlan=S.plan.includes(id);
+  return `<button class="back" data-act="nav" data-arg="train">${I.back}กลับสู่แผนการฝึก</button>
+  <div class="page-h"><div><p>Module ${m.id} · ${m.name}</p><h1>${e.name}</h1></div></div>
+  <div class="grid2 cols" style="margin-top:0">
+   <div>
+    <div class="video">${fig(e.v,S.playing)}<button class="play" data-act="playtoggle">${S.playing?I.pause+'หยุดภาพ':I.play+'เล่นภาพ'}</button></div>
+    <p class="muted" style="margin-top:.8rem">${e.desc}</p>
+    <h2 class="sec-t">ขั้นตอนการทำ</h2>
+    <ol class="steps">${e.steps.map(s=>`<li class="step"><div><h4>${s[0]}</h4><p>${s[1]}</p></div></li>`).join('')}</ol>
+   </div>
+   <div style="display:grid;gap:1rem;align-content:start">
+    <section class="card card-pad"><h3 style="font-size:1rem;margin-bottom:.7rem">ข้อกำหนดการฝึก</h3>
+      <dl class="dl"><dt>จำนวนเซต</dt><dd>${c.sets} เซต</dd><dt>ครั้งต่อเซต</dt><dd>${c.reps} ครั้ง</dd><dt>ตำแหน่งกล้อง</dt><dd>ด้านข้างลำตัว</dd><dt>ส่วนที่วัดมุม</dt><dd>${e.tags.slice(0,3).join(' · ')}</dd></dl></section>
+    <div class="notice warn">${I.info}<span>หยุดทันทีหากรู้สึกเวียนศีรษะ เจ็บหน้าอก หรือปวดผิดปกติ และควรมีผู้ดูแลอยู่ใกล้ชิดระหว่างฝึก</span></div>
+    ${inPlan&&exStatus(id)!=='ok'?`<button class="btn btn-pri btn-block" data-act="start" data-arg="${id}">เริ่มทำกายภาพบำบัด ${I.arrow}</button>`:
+      inPlan?`<button class="btn btn-soft btn-block" data-act="viewprog" data-arg="${id}">ท่านี้เสร็จแล้ว · ดูผล</button>`:
+      `<p class="hint">ท่านี้ยังไม่อยู่ในแผนของคุณ</p>`}
+   </div>
+  </div>`;
+}
+
+/* ----- Progress ----- */
+function seriesFor(id,range){
+  const c=S.cfg[id],max=c.sets*c.reps;
+  const cfg={7:{n:7,step:1},30:{n:10,step:3},90:{n:12,step:7},365:{n:12,step:30}}[range];
+  const pts=[];
+  for(let i=0;i<cfg.n;i++){
+    const off=-(cfg.n-1-i)*cfg.step,d=addDays(TODAY,off);
+    const r=0.3+0.55*i/(cfg.n-1)+0.07*Math.sin(i*2.3+id.length);
+    let v=Math.max(1,Math.min(max,Math.round(r*max)));
+    if(i===cfg.n-1)v=(S.rec[id]||[]).reduce((a,b)=>a+b,0);
+    pts.push({d,v});
+  }
+  return {pts,max};
+}
+function chartSVG(pts,max){
+  const W=640,H=270,L=44,R=16,T=16,B=36,pw=W-L-R,ph=H-T-B;
+  const top=Math.max(5,Math.ceil(max/5)*5),x=i=>L+pw*i/(pts.length-1),y=v=>T+ph*(1-v/top);
+  const ticks=[0,.25,.5,.75,1].map(f=>Math.round(top*f));
+  const best=pts.reduce((b,p,i)=>p.v>pts[b].v?i:b,0);
+  const every=Math.ceil(pts.length/6);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟจำนวนครั้งที่ทำได้ตามวัน">
+  ${ticks.map(t=>`<line class="g" x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L-8}" y="${y(t)+4}" text-anchor="end">${t}</text>`).join('')}
+  <line class="ax" x1="${L}" x2="${L}" y1="${T}" y2="${T+ph}"/><line class="ax" x1="${L}" x2="${W-R}" y1="${T+ph}" y2="${T+ph}"/>
+  <text x="4" y="12" style="font-size:10px">จำนวนครั้ง</text>
+  <polyline class="ln" points="${pts.map((p,i)=>`${x(i)},${y(p.v)}`).join(' ')}"/>
+  ${pts.map((p,i)=>`<circle class="pt ${i===best?'hi':''}" cx="${x(i)}" cy="${y(p.v)}" r="${i===best?5.5:4}"/>`).join('')}
+  ${pts.map((p,i)=>(i%every===0||i===pts.length-1)?`<text x="${x(i)}" y="${H-12}" text-anchor="middle">${fDate(p.d)}</text>`:'').join('')}
+  </svg>`;
+}
+function sessionsFor(id){
+  const c=S.cfg[id],out=[],rec=S.rec[id]||[];
+  if(rec.length)out.push({d:TODAY,sets:rec,full:rec.length>=c.sets});
+  const past=[[-1,[5,5,5]],[-2,[5,4,4]]];
+  past.forEach(([o,arr])=>out.push({d:addDays(TODAY,o),sets:arr.map(v=>Math.min(v,c.reps)),full:true}));
+  return out;
+}
+function progView(){
+  if(!S.plan.length)return `<div class="page-h"><div><h1>ความก้าวหน้า</h1></div></div><section class="card empty">${I.prog}<h3>ยังไม่มีข้อมูลความก้าวหน้า</h3><p>เมื่อเริ่มฝึกตามแผน ผลการประเมินจะแสดงที่หน้านี้</p><button class="btn btn-pri" data-act="toselect">เลือกท่าการฝึก</button></section>`;
+  if(!S.plan.includes(S.pexId))S.pexId=S.plan[0];
+  const id=S.pexId,c=S.cfg[id];
+  let body='';
+  if(S.ptab==='graph'){
+    const {pts,max}=seriesFor(id,S.prange);
+    const first=pts[0].v,last=pts[pts.length-1].v,tr=first?Math.round((last-first)/first*100):0;
+    const bi=pts.reduce((b,p,i)=>p.v>pts[b].v?i:b,0);
+    body=`<section class="card card-pad" style="margin-top:.8rem"><b style="font-size:.95rem">จำนวนครั้งที่ทำได้ต่อวัน (รวมทุกเซต)</b>${chartSVG(pts,max)}</section>
+    <div class="seg" style="margin-top:.8rem" role="group" aria-label="ช่วงเวลา">${[['7','7 วัน'],['30','1 เดือน'],['90','3 เดือน'],['365','1 ปี']].map(([k,t])=>`<button data-act="range" data-arg="${k}" aria-pressed="${S.prange===k}">${t}</button>`).join('')}</div>
+    <div class="two"><section class="card stat"><span>แนวโน้มช่วงที่เลือก</span><b class="${tr>=0?'up':'dn'}">${tr>=0?'↑ +':'↓ '}${tr}%</b></section>
+    <section class="card stat"><span>วันที่ทำได้ดีที่สุด</span><b>${fDate(pts[bi].d)}</b></section></div>
+    <p class="hint">แนวโน้มคำนวณจากจำนวนครั้งรวมต่อวัน เปรียบเทียบจุดแรกกับจุดล่าสุดของช่วงเวลา</p>`;
+  }else{
+    body=sessionsFor(id).map(s=>{const tot=s.sets.reduce((a,b)=>a+b,0),mx=c.sets*c.reps;
+      return `<section class="card sess"><div class="sess-h"><b>${fFull(s.d)}</b><span class="badge ${s.full?'b-ok':'b-go'}">${s.full?'เสร็จสิ้น':'กำลังดำเนินการ'}</span></div>
+      <p class="muted" style="font-size:.9rem;margin-bottom:.5rem">จำนวนครั้งที่ทำได้ <b style="color:var(--ink)">${tot} / ${mx}</b></p>
+      ${Array.from({length:c.sets},(_,i)=>{const v=s.sets[i];return `<div class="setrow"><span>เซตที่ ${i+1}</span><div class="pbar ${v>=c.reps?'ok':''}" ${v===undefined?'style="opacity:.5"':''}><i style="width:${v===undefined?0:v/c.reps*100}%;${v!==undefined&&v<c.reps?'background:var(--warn)':''}"></i></div><span>${v===undefined?'-':v} / ${c.reps}</span></div>`}).join('')}</section>`}).join('');
+  }
+  return `<div class="page-h"><div><h1>ความก้าวหน้า</h1><p>ผลการทำกายภาพบำบัดรายท่า</p></div></div>
+  <div class="chips" role="group" aria-label="เลือกท่า">${S.plan.map(p=>`<button class="chip" data-act="pex" data-arg="${p}" aria-pressed="${p===id}">${EX[p].name}</button>`).join('')}</div>
+  <div class="seg" role="group" aria-label="มุมมอง"><button data-act="ptab" data-arg="graph" aria-pressed="${S.ptab==='graph'}">กราฟ</button><button data-act="ptab" data-arg="detail" aria-pressed="${S.ptab==='detail'}">รายละเอียด</button></div>
+  ${body}`;
+}
+
+function meView(){
+  const u=S.user,sz=(k,t)=>`<button data-act="size" data-arg="${k}" aria-pressed="${S.size===k}">${t}</button>`,th=(k,t)=>`<button data-act="theme" data-arg="${k}" aria-pressed="${S.theme===k}">${t}</button>`;
+  return `<div class="page-h"><div><h1>โปรไฟล์</h1><p>ข้อมูลผู้ป่วยและการตั้งค่าการแสดงผล</p></div></div>
+  ${banner()}
+  <section class="card" style="margin-top:1rem;overflow:hidden"><div class="card-h"><h2>ข้อมูลผู้ป่วย</h2></div>
+    <div class="row"><span class="muted">ชื่อ - นามสกุล</span><b>${u.name}</b></div>
+    <div class="row"><span class="muted">เลขบัตรประชาชน</span><b>${u.idm}</b></div>
+    <div class="row"><span class="muted">อายุ / เพศ</span><b>${u.age||'-'} ปี / ${u.sex||'-'}</b></div>
+    <div class="row"><span class="muted">การวินิจฉัย</span><b>${u.dx||'-'}</b></div>
+    <div class="row"><span class="muted">วันที่เริ่มมีอาการ</span><b>${u.onset||'-'}</b></div>
+    <div class="row"><span class="muted">โรคประจำตัวอื่นๆ</span><b>${u.comorb||'ไม่มี'}</b></div></section>
+  <section class="card" style="margin-top:1rem;overflow:hidden"><div class="card-h"><h2>การแสดงผล</h2></div>
+    <div class="row"><span>ขนาดตัวอักษร</span><div class="seg" role="group">${sz('','ปกติ')}${sz('l','ใหญ่')}${sz('xl','ใหญ่มาก')}</div></div>
+    <div class="row"><span>โหมดสี</span><div class="seg" role="group">${th('','อัตโนมัติ')}${th('light','สว่าง')}${th('dark','มืด')}</div></div></section>
+  <button class="btn btn-line btn-block" style="margin-top:1rem" data-act="logout">${I.out}ออกจากระบบ</button>`;
+}
+
+/* ============ Render / router ============ */
+function render(){
+  const r=S.route,app=$('#app');
+  const T={home:'หน้าหลัก',train:'แผนการฝึก',select:'เลือกท่าฝึก',detail:'รายละเอียดท่า',prog:'ความก้าวหน้า',me:'โปรไฟล์'};
+  const V={login:loginView,reg:regView,home:homeView,train:trainView,select:selectView,detail:detailView,prog:progView,me:meView};
+  const keepScroll=app.dataset.r===r?window.scrollY:0;
+  app.dataset.r=r;
+  const inner=V[r]();
+  app.innerHTML=(r==='login'||r==='reg')?inner:shell(inner,T[r]);
+  window.scrollTo(0,keepScroll);
+  const bar=$('#ringbar');
+  if(bar)requestAnimationFrame(()=>requestAnimationFrame(()=>bar.setAttribute('stroke-dashoffset',bar.dataset.t)));
+}
+function go(r,reset){S.route=r;S.err='';render();if(reset!==false)window.scrollTo(0,0)}
+
+/* ============ Camera session ============ */
+let C=null;
+const SK={H:[150,200],TH:100,SH:92,TR:92};
+function openCam(id){
+  C={id,ex:EX[id],reps:0,target:S.cfg[id].reps,setNo:(S.done[id]||0)+1,phase:'prep',t:0,last:0,state:'flex',run:true,confirm:false,raf:0,saved:null};
+  drawCam();$('#cam').classList.add('open');document.body.style.overflow='hidden';
+}
+function closeCam(){
+  if(C)cancelAnimationFrame(C.raf);C=null;
+  $('#cam').classList.remove('open');document.body.style.overflow='';
+}
+function skeletonSVG(live){
+  return `<svg viewBox="0 0 420 320" preserveAspectRatio="xMidYMid meet" aria-label="ภาพวิเคราะห์ท่าทางจำลอง">
+  <path d="M105 120V206H218M115 206V292M208 206V292" stroke="#2C4558" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M30 294H400" stroke="#2C4558" stroke-width="3"/>
+  <g id="body" stroke="#36B5A8" stroke-opacity=".2" stroke-width="34" stroke-linecap="round" fill="none">
+    <line id="b-torso"/><line id="b-thigh"/><line id="b-shank"/></g>
+  <circle id="head" r="22" fill="#36B5A8" fill-opacity=".22"/>
+  <g stroke="#4FC3F7" stroke-width="4" stroke-linecap="round" fill="none">
+    <line id="k-torso"/><line id="k-thigh"/><line id="k-shank"/><line id="k-foot"/><line id="k-arm1"/><line id="k-arm2"/><line id="k-neck"/></g>
+  <g fill="#fff" stroke="#1B6FA8" stroke-width="2"><circle id="p-sh" r="5"/><circle id="p-hip" r="5"/><circle id="p-kn" r="5"/><circle id="p-an" r="5"/><circle id="p-to" r="4"/><circle id="p-el" r="4"/><circle id="p-wr" r="4"/><circle id="p-hd" r="4"/></g>
+  ${[['lb','หลัง'],['lh','สะโพก'],['lk','เข่า']].map(([k,t])=>`<g id="${k}"><rect x="-38" y="-22" width="76" height="42" rx="8" fill="#fff"/><text x="0" y="-6" text-anchor="middle" font-size="11" fill="#566B7C" font-family="IBM Plex Sans Thai">${t}</text><text id="${k}v" x="0" y="13" text-anchor="middle" font-size="17" font-weight="700" fill="#10283A" font-family="IBM Plex Sans Thai">–°</text></g>`).join('')}
+  </svg>`;
+}
+function drawCam(){
+  const el=$('#cam'),c=C,e=c.ex;
+  const top=`<header class="cam-top"><button class="iconbtn" data-act="camstop" aria-label="ย้อนกลับ">${I.back}</button>
+   <div class="t"><b>${e.name}</b><small>มุมมองด้านข้าง · ประเมินด้วยกล้อง</small></div><span class="badge b-info">เซต ${c.setNo} / ${S.cfg[c.id].sets}</span></header>`;
+  let main='';
+  if(c.phase==='prep'){
+    main=`<div class="cam-main"><div class="stage"><div class="rec off"><i></i>กล้องยังไม่เปิด</div>${skeletonSVG()}</div>
+    <div class="panel"><section class="card card-pad"><h2 style="font-size:1.05rem">ตรวจสอบความพร้อมก่อนเริ่ม</h2>
+      <ul class="check"><li><i>1</i><span>วางอุปกรณ์ให้กล้องเห็นลำตัวด้านข้างทั้งตัว</span></li><li><i>2</i><span>ให้มีแสงสว่างเพียงพอ และไม่มีสิ่งกีดขวางด้านหลัง</span></li><li><i>3</i><span>นั่งบนเก้าอี้ที่มั่นคง และให้ผู้ดูแลอยู่ใกล้ชิด</span></li></ul></section>
+      <div class="notice warn">${I.info}<span>หยุดทันทีหากรู้สึกเวียนศีรษะ เจ็บหน้าอก หรือปวดผิดปกติ</span></div>
+      <button class="btn btn-pri btn-block" data-act="camgo">${I.cam}เปิดกล้องและเริ่มประเมิน</button>
+      <p class="hint" style="text-align:center">ต้นแบบนี้จำลองการตรวจจับ ไม่ได้เปิดกล้องจริง</p></div></div>`;
+  }else{
+    main=`<div class="cam-main"><div class="stage"><div class="rec ${c.run?'':'off'}" id="recl"><i></i><span id="rect">${c.run?'กำลังวิเคราะห์ท่าทาง (จำลอง)':'หยุดชั่วคราว'}</span></div>${skeletonSVG(true)}</div>
+    <div class="panel">
+      <div class="reads"><div class="read"><span>หลัง</span><b id="rb">–°</b></div><div class="read"><span>สะโพก</span><b id="rh">–°</b></div><div class="read"><span>เข่า</span><b id="rk">–°</b></div></div>
+      <section class="card reps"><div class="reps-t"><span>จำนวนครั้ง</span><b><span id="rn" style="color:var(--ink);font-size:inherit">0</span> <small>/ ${c.target}</small></b></div>
+        <div class="pbar" style="margin-top:.6rem"><i id="rbar" style="width:0%"></i></div>
+        <p class="hint" id="rmsg">ทำท่าตามขั้นตอน ระบบจะนับให้อัตโนมัติ</p></section>
+      <div class="cam-act"><button class="btn btn-line" data-act="camstop">หยุด</button><button class="btn btn-pri" id="savebtn" data-act="camsave" disabled>บันทึกเซต</button>
+        <button class="iconbtn" data-act="camreset" aria-label="เริ่มนับใหม่">${I.reset}</button></div>
+      <button class="btn btn-text" data-act="campause" id="pausebtn">${c.run?'หยุดชั่วคราว':'ทำต่อ'}</button>
+    </div></div>`;
+  }
+  let sheet='';
+  if(c.confirm){
+    sheet=`<div class="scrim"><div class="sheet" role="alertdialog"><h2>หยุดการประเมินหรือไม่</h2><p class="muted">เซตนี้จะไม่ถูกบันทึก ผลที่บันทึกไว้ก่อนหน้ายังคงอยู่</p>
+    <div class="btns"><button class="btn btn-pri" data-act="camcont">ทำต่อ</button><button class="btn btn-line" data-act="camexit">หยุดโดยไม่บันทึก</button></div></div></div>`;
+  }else if(c.saved){
+    const id=c.id,d=S.done[id],t=S.cfg[id].sets,full=d>=t;
+    sheet=`<div class="scrim"><div class="sheet" role="dialog"><div class="okc">${I.tick}</div><h2>บันทึกผลเรียบร้อย</h2>
+    <div class="two"><div class="stat"><span>เซตปัจจุบัน</span><b>${d} / ${t}</b></div><div class="stat"><span>จำนวนครั้งที่ทำสำเร็จ</span><b>${c.saved} / ${c.target}</b></div></div>
+    <div class="btns">${full?'':`<button class="btn btn-pri" data-act="camnext">ทำเซตถัดไป</button>`}
+    <button class="btn ${full?'btn-pri':'btn-sec'}" data-act="camprog">ดูความก้าวหน้า</button><button class="btn btn-text" data-act="camhome">กลับหน้าหลัก</button></div></div></div>`;
+  }
+  el.innerHTML=top+main+sheet;
+}
+function camLoop(ts){
+  if(!C||C.phase!=='run')return;
+  if(!C.last)C.last=ts;
+  const dt=Math.min((ts-C.last)/1000,.1);C.last=ts;
+  if(C.run&&!C.confirm&&!C.saved)C.t+=dt;
+  updateSkeleton();
+  C.raf=requestAnimationFrame(camLoop);
+}
+const rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
+function setL(id,a,b){const n=document.getElementById(id);if(!n)return;n.setAttribute('x1',a[0]);n.setAttribute('y1',a[1]);n.setAttribute('x2',b[0]);n.setAttribute('y2',b[1])}
+function setC(id,p){const n=document.getElementById(id);if(!n)return;n.setAttribute('cx',p[0]);n.setAttribute('cy',p[1])}
+function setT(id,x,y){const n=document.getElementById(id);if(n)n.setAttribute('transform',`translate(${x},${y})`)}
+function txt(id,v){const n=document.getElementById(id);if(n)n.textContent=v}
+function updateSkeleton(){
+  const T=4.2,ph=(C.t%T)/T,e=.5-.5*Math.cos(2*Math.PI*ph),knee=98+54*e;
+  const back=10+5*Math.sin(C.t*.9);
+  const H=SK.H,Sh=[H[0]+SK.TR*Math.sin(rad(back)),H[1]-SK.TR*Math.cos(rad(back))];
+  const K=[H[0]+SK.TH,H[1]],th=rad(knee);
+  const A=[K[0]-SK.SH*Math.cos(th),K[1]+SK.SH*Math.sin(th)];
+  const To=[A[0]+26*Math.sin(th),A[1]+26*Math.cos(th)];
+  const Hd=[Sh[0]+4,Sh[1]-34],El=[Sh[0]+26,Sh[1]+52],Wr=[H[0]+70,H[1]-12];
+  setL('b-torso',H,Sh);setL('b-thigh',H,K);setL('b-shank',K,A);
+  setL('k-torso',H,Sh);setL('k-thigh',H,K);setL('k-shank',K,A);setL('k-foot',A,To);setL('k-arm1',Sh,El);setL('k-arm2',El,Wr);setL('k-neck',Sh,[Hd[0],Hd[1]+18]);
+  const hd=document.getElementById('head');if(hd){hd.setAttribute('cx',Hd[0]);hd.setAttribute('cy',Hd[1])}
+  setC('p-sh',Sh);setC('p-hip',H);setC('p-kn',K);setC('p-an',A);setC('p-to',To);setC('p-el',El);setC('p-wr',Wr);setC('p-hd',[Hd[0],Hd[1]+2]);
+  const v1=[Sh[0]-H[0],Sh[1]-H[1]],v2=[K[0]-H[0],K[1]-H[1]];
+  const hip=deg(Math.acos((v1[0]*v2[0]+v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2))));
+  const bk=Math.round(back),hp=Math.round(hip),kn=Math.round(knee);
+  setT('lb',Sh[0]+58,Sh[1]-24);setT('lh',H[0]-62,H[1]-8);setT('lk',K[0]+4,K[1]-62);
+  txt('lbv',bk+'°');txt('lhv',hp+'°');txt('lkv',kn+'°');txt('rb',bk+'°');txt('rh',hp+'°');txt('rk',kn+'°');
+  if(C.state==='flex'&&knee>=146)C.state='ext';
+  else if(C.state==='ext'&&knee<=106){C.state='flex';if(C.reps<C.target)C.reps++}
+  txt('rn',C.reps);
+  const bar=document.getElementById('rbar');if(bar)bar.style.width=(C.reps/C.target*100)+'%';
+  const sb=document.getElementById('savebtn');
+  if(sb){sb.disabled=C.reps===0;sb.classList.toggle('pulse',C.reps>=C.target)}
+  txt('rmsg',C.reps>=C.target?'ครบจำนวนครั้งตามกำหนดแล้ว กดบันทึกเซตได้':C.reps>0?'เหลืออีก '+(C.target-C.reps)+' ครั้ง':'ทำท่าตามขั้นตอน ระบบจะนับให้อัตโนมัติ');
+}
+
+/* ============ Events ============ */
+function setPath(k,v){
+  if(k.startsWith('login.'))S.login[k.slice(6)]=v;
+  else if(k.startsWith('reg.'))S.reg[k.slice(4)]=v;
+}
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.k){let v=t.value;if(t.inputMode==='numeric')v=v.replace(/\D/g,''),t.value=v;setPath(t.dataset.k,v);
+    if(t.dataset.k==='reg.dob'){const a=calcAge(v),n=$('#r-age');if(n)n.value=a}}
+  else if(t.id==='q'){S.q=t.value;const pos=t.selectionStart;render();const n=$('#q');if(n){n.focus();n.setSelectionRange(pos,pos)}}
+  else if(t.dataset.cfg){const [id,k]=t.dataset.cfg.split('.');const n=Math.max(1,Math.min(k==='sets'?6:20,parseInt(t.value)||1));S.draftCfg[id]=S.draftCfg[id]||{sets:3,reps:5};S.draftCfg[id][k]=n}
+});
+document.addEventListener('change',e=>{const t=e.target;if(t.tagName==='SELECT'&&t.dataset.k)setPath(t.dataset.k,t.value)});
+
+function fail(m){S.err=m;render()}
+function onAct(a,g){
+  switch(a){
+  case 'eye':if(g==='login')S.login.show=!S.login.show;else S.reg.show=!S.reg.show;render();break;
+  case 'forgot':fail('ต้นแบบนี้ยังไม่มีขั้นตอนกู้รหัสผ่าน โปรดติดต่อเจ้าหน้าที่');break;
+  case 'login':{const L=S.login;
+    if(L.id.length!==13)return fail('กรุณากรอกเลขบัตรประจำตัวประชาชนให้ครบ 13 หลัก');
+    if(!L.pw)return fail('กรุณากรอกรหัสผ่าน');
+    demoLogin();go('home');break;}
+  case 'toreg':S.reg={step:1,id:'',pw:'',pw2:'',user:'',name:'',dob:'',sex:'',comorb:'',type:'',onset:'',show:false};go('reg');break;
+  case 'tologin':go('login');break;
+  case 'logout':closeCam();S.user=null;S.err='';go('login');break;
+  case 'reg-back':S.reg.step=S.reg.step===4&&!S.reg.pw?2:S.reg.step-1;S.err='';render();break;
+  case 'reg-go':S.reg.step=+g;S.err='';render();break;
+  case 'reg-next':{const R=S.reg;
+    if(R.step===1){if(R.id.length!==13)return fail('กรุณากรอกเลขบัตรประจำตัวประชาชนให้ครบ 13 หลัก');R.step=2}
+    else if(R.step===3){if(R.pw.length<6)return fail('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');if(R.pw!==R.pw2)return fail('รหัสผ่านทั้งสองช่องไม่ตรงกัน');R.step=4}
+    else if(R.step===4){if(!R.name.trim())return fail('กรุณากรอกชื่อ - นามสกุล');if(!R.dob)return fail('กรุณาเลือกวันเดือนปีเกิด');if(!R.sex)return fail('กรุณาเลือกเพศ');R.step=5}
+    else{if(!R.type)return fail('กรุณาเลือกประเภทโรคหลอดเลือดสมอง');if(!R.onset)return fail('กรุณาเลือกวันที่เป็นโรคหลอดเลือดสมอง');
+      const o=new Date(R.onset);
+      S.user={name:R.name.trim(),age:calcAge(R.dob),sex:R.sex,dx:R.type,onset:fFull(o),idm:R.id.charAt(0)+'-'+R.id.slice(1,5)+'-xxxxx-xx-'+R.id.slice(-1),comorb:R.comorb||'ไม่มี'};
+      S.plan=[];S.cfg={};S.done={};S.rec={};go('home');return}
+    S.err='';render();break;}
+  case 'nav':closeCam();go(g);break;
+  case 'toselect':S.draft=[...S.plan];S.draftCfg=JSON.parse(JSON.stringify(S.cfg));S.exp={};S.q='';S.open={1:true};go('select');break;
+  case 'selback':go(S.plan.length?'train':'home');break;
+  case 'acc':S.open[g]=!S.open[g];render();break;
+  case 'chk':{const i=S.draft.indexOf(g);if(i>=0)S.draft.splice(i,1);else{S.draft.push(g);S.draftCfg[g]=S.draftCfg[g]||{sets:3,reps:5}}render();break;}
+  case 'exp':S.exp[g]=!S.exp[g];render();break;
+  case 'selsave':{
+    const nc={},nd={},nr={};
+    S.draft.forEach(id=>{nc[id]=S.draftCfg[id]||{sets:3,reps:5};nd[id]=Math.min(S.done[id]||0,nc[id].sets);nr[id]=(S.rec[id]||[]).slice(0,nd[id])});
+    S.plan=MODS.flatMap(m=>m.ex).filter(id=>S.draft.includes(id));S.cfg=nc;S.done=nd;S.rec=nr;go('train');break;}
+  case 'detail':S.detailId=g;S.playing=true;go('detail');break;
+  case 'playtoggle':S.playing=!S.playing;render();break;
+  case 'start':openCam(g);break;
+  case 'viewprog':S.pexId=g;S.ptab='detail';go('prog');break;
+  case 'pex':S.pexId=g;render();break;
+  case 'ptab':S.ptab=g;render();break;
+  case 'range':S.prange=g;render();break;
+  case 'size':S.size=g;if(g)document.documentElement.dataset.size=g;else document.documentElement.removeAttribute('data-size');render();break;
+  case 'theme':S.theme=g;if(g)document.documentElement.dataset.theme=g;else document.documentElement.removeAttribute('data-theme');render();break;
+  /* camera */
+  case 'camgo':C.phase='run';C.last=0;drawCam();C.raf=requestAnimationFrame(camLoop);break;
+  case 'camstop':if(C.phase==='prep'){closeCam();break}C.confirm=true;drawCam();break;
+  case 'camcont':C.confirm=false;drawCam();break;
+  case 'camexit':closeCam();render();break;
+  case 'campause':C.run=!C.run;txt('pausebtn',C.run?'หยุดชั่วคราว':'ทำต่อ');txt('rect',C.run?'กำลังวิเคราะห์ท่าทาง (จำลอง)':'หยุดชั่วคราว');document.getElementById('recl').classList.toggle('off',!C.run);break;
+  case 'camreset':C.reps=0;C.state='flex';C.t=0;break;
+  case 'camsave':{const id=C.id;S.done[id]=Math.min(C.setNo,S.cfg[id].sets);S.rec[id]=(S.rec[id]||[]);S.rec[id][C.setNo-1]=C.reps;C.saved=C.reps;drawCam();break;}
+  case 'camnext':{const id=C.id;cancelAnimationFrame(C.raf);openCam(id);break;}
+  case 'camprog':{const id=C.id;closeCam();S.pexId=id;S.ptab='detail';go('prog');break;}
+  case 'camhome':closeCam();go('home');break;
+  }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  onAct(b.dataset.act,b.dataset.arg);
+});
+render();
+</script>
+</body>
+</html>

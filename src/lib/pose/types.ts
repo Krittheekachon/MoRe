@@ -1,0 +1,22 @@
+export type Range = { min: number; max: number };
+export type Side = "left" | "right";
+export type PoseCriteria = {
+  exerciseCode: string;
+  metricId: number;
+  definitionVersion: number;
+  criteriaVersion: number;
+  landmarks: [number, number, number];
+  coordinates: "image-2d" | "world-3d";
+  start: Range;
+  departureMin: number;
+  correctPeak: Range;
+  stableMs: number;
+  maxGapMs: number;
+  minVisibility: number;
+  checkpointIds: { start: number; peak: number; returned: number };
+};
+export type CompletedRep = { startedAt: number; completedAt: number; startAngle: number; peakAngle: number; endAngle: number; confidence: number };
+export type SaveSetInput = { side: Side; metricId: number; definitionVersion: number; criteriaVersion: number; elapsedSeconds: number; repetitions: CompletedRep[] };
+export type PosePoint = { x: number; y: number; z: number; visibility?: number; presence?: number };
+export type RecordingSlot = { sessionId: number; setId: number; setNumber: number; targetReps: number };
+export type SavedSet = { setId: number; reps: number; savedSets: number; targetSets: number; maxAngle: number | null; averageAngle: number | null };

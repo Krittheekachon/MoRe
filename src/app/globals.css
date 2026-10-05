@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
+html { font-size: 16px; }
+html[data-size="l"] { font-size: 17.5px; }
+html[data-size="xl"] { font-size: 19px; }
+html[data-theme="light"] { color-scheme: light; }
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4faf6;
+  --foreground: #143024;
+  --ui-surface: #ffffff;
+  --ui-soft: #f7fcf8;
+  --ui-muted: #4e6a5b;
+  --ui-line: #cfe5d6;
+  --ui-line-soft: #e2f0e7;
+  --ui-primary: #137c4b;
+  --ui-primary-dark: #0f6f42;
+  --ui-primary-soft: #e1f4e8;
+  --ui-blue: #2a66a8;
+  --ui-blue-soft: #e6eff8;
+  --ui-on-primary: #ffffff;
+  color-scheme: light dark;
+}
+
+html[data-theme="dark"] {
+  --bg: #0B151C;
+  --surface: #12212B;
+  --ink: #E7F0F5;
+  --pri: #3CB8AE;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --ui-surface: var(--surface);
+  --ui-soft: #182c38;
+  --ui-muted: #a6bac6;
+  --ui-line: #304754;
+  --ui-line-soft: #243945;
+  --ui-primary: var(--pri);
+  --ui-primary-dark: #67ccc4;
+  --ui-primary-soft: #163a3d;
+  --ui-blue: #87baf1;
+  --ui-blue-soft: #182f45;
+  --ui-on-primary: var(--bg);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] {
+    --bg: #0B151C;
+    --surface: #12212B;
+    --ink: #E7F0F5;
+    --pri: #3CB8AE;
+    --background: var(--bg);
+    --foreground: var(--ink);
+    --ui-surface: var(--surface);
+    --ui-soft: #182c38;
+    --ui-muted: #a6bac6;
+    --ui-line: #304754;
+    --ui-line-soft: #243945;
+    --ui-primary: var(--pri);
+    --ui-primary-dark: #67ccc4;
+    --ui-primary-soft: #163a3d;
+    --ui-blue: #87baf1;
+    --ui-blue-soft: #182f45;
+    --ui-on-primary: var(--bg);
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: "IBM Plex Sans Thai", "Noto Sans Thai", Arial, sans-serif;
+  --font-mono: monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
