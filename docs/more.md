@@ -1,5 +1,7 @@
 # MoRe Scope and Stack
 
+Agent/onboarding documentation (2026-10-06): root `GEMINI.md` directs Antigravity/Gemini to the shared `AGENTS.md` rules and latest project docs. Root `README.md` now documents first clone, supported Node versions, independent environment keys, Docker/PostgreSQL, Prisma 7 migrations/client, catalog/model setup, Demo vs normal startup, local credentials and troubleshooting. Runtime and database behavior are unchanged by this documentation update.
+
 MoRe is a web-based stroke rehabilitation platform for patients and doctors/therapists. It supports home rehabilitation, camera-based movement assessment, rehabilitation plan assignment, and progress tracking. The system supports rehabilitation work; it does not replace clinical diagnosis or professional assessment.
 
 ## Product Scope

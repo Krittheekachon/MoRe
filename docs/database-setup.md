@@ -1,5 +1,7 @@
 # การตั้งค่าฐานข้อมูล MoRe
 
+สำหรับ Clone ครั้งแรก ให้เริ่มที่ [README.md](../README.md) ซึ่งรวมการติดตั้ง dependencies, root `.env`, auth keys, การเลือก Demo/โหมดปกติ และการเตรียม model assets เอกสารนี้อธิบายฐานข้อมูลเพิ่มเติม; ไม่ copy credentials ของเครื่องผู้พัฒนาไปเครื่องเพื่อน
+
 ## โครงสร้างและขอบเขต
 
 - ใช้ `docs/MoRe_Database_scope_1_3 (1).dbml` เป็นแหล่งอ้างอิง ไม่ใช่ `docs/database.dbml` หรือไฟล์ `.cbml`

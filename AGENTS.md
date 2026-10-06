@@ -10,6 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # MoRe Project Rules
 
+These rules apply to all coding agents, including Codex, Antigravity/Gemini, and Claude. `GEMINI.md` and `CLAUDE.md` point here; keep this file as the single source of project rules. Paths in this file are repository-relative. For first-time setup on another machine, follow `README.md` rather than copying private environment files or credentials from the original workspace.
+
 MoRe is a stroke rehabilitation platform for patients and doctors/therapists. The app is built with Next.js App Router, TypeScript, Tailwind CSS, PostgreSQL, Prisma, and MediaPipe Pose Landmarker.
 
 ## Required Reading

@@ -1,5 +1,7 @@
 # MoRe Checklist
 
+- Onboarding/Antigravity docs (2026-10-06): README replaced with first-clone instructions for dependencies/environment/keys/Docker/Prisma/catalog/MediaPipe, Demo vs normal startup and troubleshooting. Added GEMINI.md pointing to shared AGENTS.md rules; linked setup/account/Demo docs to README. Verified UTF-8, Markdown fences/local links, npm/setup-file references, Compose configuration and read-only Prisma migration status (up to date). No runtime/schema change. Fresh-machine installation and live Antigravity rule loading were not executed; documentation compatibility was checked against official Google Rules docs.
+
 Status labels:
 
 - UI: `Not started`, `In progress`, `Ready for review (รอตรวจ)`, `Passed`

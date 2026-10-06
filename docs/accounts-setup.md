@@ -1,5 +1,7 @@
 # ระบบบัญชี MoRe
 
+คู่มือติดตั้งบนเครื่องเพื่อนและสร้างกุญแจใหม่อยู่ที่ [README.md](../README.md) ใช้ environment ของเครื่องตัวเอง ไม่แชร์ `.env` หรือไฟล์บัญชี Demo ข้ามฐานข้อมูล
+
 ## Demo ทั้งระบบ: สถานะที่ใหม่กว่า (2026-10-05)
 
 Login บุคลากรเชื่อมจริงแล้วที่ `/api/auth/doctor/login` ผ่าน hash verification, in-memory throttle, Origin/JSON validation และ HttpOnly session เดิม หน้าบุคลากรและ API ตรวจ active role จริงทุกคำขอ ไม่ให้บัญชีคนไข้เข้าถึง และไม่เปิด mock bypass link ส่วน Recovery และนโยบายรหัสตั้งต้น 4 หลักยังคงรอการยืนยัน ไม่ถือว่า Demo อนุมัตินโยบายบัญชีจริงเหล่านี้
