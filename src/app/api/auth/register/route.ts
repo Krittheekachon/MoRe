@@ -13,7 +13,11 @@ export async function POST(request: Request) {
     const personal = personalFields(data);
     const diagnosed = date(data, "stroke_diagnosed_on");
     if (diagnosed! < personal.date_of_birth!) throw new AccountError("วันที่วินิจฉัยต้องไม่ก่อนวันเกิด");
-    const stroke = choice(data, "stroke_type", ["ischemic", "hemorrhagic", "tia", "unspecified"]);
+    const stroke = choice(data, "stroke_type", [
+      "ischemic", "hemorrhagic",
+      // "tia", // Temporarily disabled; restore together with the registration option.
+      "unspecified",
+    ]);
     const now = new Date();
     try {
       await prisma.$transaction(async tx => {

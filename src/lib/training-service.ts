@@ -13,7 +13,7 @@ const templateRelations = {
   exercises: { orderBy: [{ sort_order: "asc" }, { id: "asc" }], include: { exercise: { include: exerciseRelations }, weekdays: true } },
 } satisfies Prisma.RehabilitationTemplateInclude;
 const planRelations = {
-  sourceTemplate: { select: { name_th: true } },
+  sourceTemplate: { select: { name_th: true, template_code: true } },
   exercises: { orderBy: { id: "asc" }, include: { exercise: { include: exerciseRelations }, weekdays: true } },
 } as const;
 type Template = Prisma.RehabilitationTemplateGetPayload<{ include: typeof templateRelations }>;
@@ -45,7 +45,7 @@ function templateDTO(template: Template): TrainingTemplate {
 
 function planDTO(plan: Plan): PatientTrainingPlan {
   const current = plan.exercises.filter(item => item.effective_to === null);
-  return { id: plan.id, code: plan.plan_code, templateId: plan.source_template_id, name: plan.sourceTemplate?.name_th || plan.plan_code, startsAt: current.length ? new Date(Math.min(...current.map(item => item.effective_from.getTime()))).toISOString() : null,
+  return { id: plan.id, code: plan.plan_code, templateCode: plan.sourceTemplate?.template_code ?? null, templateId: plan.source_template_id, name: plan.sourceTemplate?.name_th || plan.plan_code, startsAt: current.length ? new Date(Math.min(...current.map(item => item.effective_from.getTime()))).toISOString() : null,
     items: plan.exercises.filter(item => item.effective_to === null).map(item => ({ id: item.id, exercise: exerciseDTO(item.exercise), side: item.selected_side, targetSets: item.target_sets, targetReps: item.target_reps_per_set, sessionsPerDay: item.sessions_per_day, schedule: item.schedule_type, weekdays: item.weekdays.map(day => day.weekday).sort(), instructions: item.instruction_override })) };
 }
 

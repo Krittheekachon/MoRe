@@ -53,3 +53,5 @@ next-env.d.ts
 # Synthetic Demo credentials and identity manifest are machine-local.
 .demo/
 .next-demo/
+
+certificates

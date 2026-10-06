@@ -1,5 +1,17 @@
 # UI Map
 
+Shared logo (2026-10-06): replace raster marks in Login, RegisterIntro, review/completion, staff Login/recovery and existing shell branding with `MoreLogo`. Keep the existing containers, navigation and form composition; registration's existing hidden mobile/iPad mark is now a compact wordmark above its heading as requested. Login uses a 56px symbol, compact pages 32px, navigation 40px (32px on narrow screens); CSS preserves square SVG proportions and theme text. Transparent SVG has no background rectangle, decorative dots, embedded bitmap or filter. Browser screenshots reviewed for mobile dark/XL, iPad light/normal and shared shell branding. Camera composition is unchanged.
+
+Registration completion (2026-10-06): successful review confirmation clears the registration draft and replaces the route with Login (`/`) immediately, per user request.
+
+Medical registration modal (2026-10-06): actions now read “ตรวจสอบข้อมูล” and “แก้ไขข้อมูล”, separated by 16px. Edit uses a transparent outlined button and closes the modal to resume editing. Scoped styles preserve other registration buttons.
+
+Registration stroke types (2026-10-06): TIA is temporarily commented out in the medical form and registration API. Existing TIA records retain their display label; no database change.
+
+Registration update (2026-10-06): the existing initial-password button now proceeds with server-derived last-four-digit credentials. The custom-password option retains its existing minimum of eight characters; no layout change.
+
+Exercise picker update (2026-10-06): `/register/plan` temporarily enables only Module 2 and its `seated-leg-raise` option, labeled “นั่งเหยียดขาบนเก้าอี้” for this picker. Other Module 2 options remain visible and disabled with a pending label; Modules 1 and 3-5 are disabled. This follows the user's requested availability restriction and does not rename the database catalog or approve clinical criteria. Availability is configured in `src/components/app/plan-views.tsx`.
+
 Figma source: `Gait_Analysis`, file key `ERysbW44MzAOxL4SKjZPkL`, page/node `360:1376`.
 
 Figma is a reference for design direction, UX flow, information architecture, and visual identity, not a pixel-perfect specification. Route mappings preserve the intended flow; dimensions and composition may adapt for web accessibility/usability. The current implementation guideline is in `docs/more.md`.

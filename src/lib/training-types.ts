@@ -11,7 +11,7 @@ export type TrainingTemplate = {
   id: number; code: string; name: string; description: string | null; version: number; items: TrainingItem[];
 };
 export type PatientTrainingPlan = {
-  id: number; code: string; templateId: number | null; name: string; startsAt: string | null; items: TrainingItem[];
+  id: number; code: string; templateCode: string | null; templateId: number | null; name: string; startsAt: string | null; items: TrainingItem[];
 };
 export type DailyTrainingItem = {
   id: number; planId: number; exercise: TrainingExercise; side: string | null;

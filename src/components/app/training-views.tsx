@@ -10,6 +10,8 @@ import { dateLabel, type PatientProfile } from "@/lib/demo-data";
 import { trainingHref, type DailyTraining, type DailyTrainingItem, type PatientTrainingPlan, type TrainingHistory, type TrainingItem, type TrainingTemplate } from "@/lib/training-types";
 import { PatientBanner } from "./patient-views";
 import { EmptyState, PageHeading } from "./shell";
+import { isMockPlan } from "@/lib/mock-plan";
+import { MockBadge } from "../ui/mock-badge";
 
 const weekdays = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
 const sides: Record<string, string> = { left: "ซ้าย", right: "ขวา", both: "สองข้าง", none: "ไม่แยกข้าง" };
@@ -71,11 +73,12 @@ export function TrainingPlanSelection({ templates, activePlan, demo = false }: {
   return <div className="exercise-picker training-picker">
     <PageHeading title="เลือกแผนการฝึก" subtitle={activePlan ? `แผนที่เลือก: ${activePlan.name} · ${activePlan.code}` : undefined} back="/patient" backLabel="กลับสู่แผนการฝึก" />
     <p className="exercise-picker-notice"><Info size={20} aria-hidden="true" />{demo ? "DEMO แผนสังเคราะห์สำหรับทดลองระบบ ไม่ใช่แผนรักษาที่หมอยืนยัน" : "กรุณาเลือกแผนที่แพทย์แนะนำ"}</p>
-    {activePlan && <section className="training-current-plan"><h2>แผนของคุณ</h2><ul>{activePlan.items.map(item => <li key={item.id}>{item.exercise.name} · {item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {schedule(item)}</li>)}</ul></section>}
+    {activePlan && <section className="training-current-plan"><h2>แผนของคุณ {isMockPlan(activePlan.templateCode) && <MockBadge />}</h2>{isMockPlan(activePlan.templateCode) && <p>ข้อมูล Mock สำหรับทดสอบระบบ ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน</p>}<ul>{activePlan.items.map(item => <li key={item.id}>{item.exercise.name} · {item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {schedule(item)}</li>)}</ul></section>}
     <label className="exercise-picker-search"><Search size={22} aria-hidden="true" /><span className="sr-only">ค้นหาแผนฝึก</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="ค้นหาชื่อแผนหรือท่าฝึก" /></label>
     {!templates.length ? <EmptyState title="ยังไม่มีแผนกลางที่พร้อมให้เลือก"><p>กรุณาติดต่อทีมรักษาเพื่อจัดแผนฝึก</p></EmptyState> : <div className="exercise-picker-modules">{visible.map(template => <details className="exercise-picker-module" key={template.id} open={selected === template.id || undefined}>
-      <summary><span><b>{template.name}</b><small> {template.code} · รุ่น {template.version}</small></span><ChevronDown size={24} /></summary>
+      <summary><span><b>{template.name}</b> {isMockPlan(template.code) && <MockBadge />}<small> {template.code} · รุ่น {template.version}</small></span><ChevronDown size={24} /></summary>
       <div className="exercise-picker-options"><label className="exercise-picker-option"><input type="radio" name="training-template" value={template.id} checked={selected === template.id} disabled={pending} onChange={() => setSelected(template.id)} /><span><strong>เลือก {template.name}</strong>{template.description && <small>{template.description}</small>}</span></label>
+        {isMockPlan(template.code) && <p><MockBadge /> ข้อมูลทดสอบระบบเท่านั้น ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน</p>}
         <ul className="training-template-items">{template.items.map(item => <li key={item.id}><strong>{item.exercise.name}</strong><p>{item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {schedule(item)}</p><p>ข้าง: {sides[item.side || ""] || (item.exercise.supportsSide ? "เลือกก่อนฝึก" : "ไม่แยกข้าง")}</p>{item.instructions && <p>{item.instructions}</p>}</li>)}</ul>
       </div></details>)}{!visible.length && <EmptyState title="ไม่พบแผนที่ตรงกับคำค้น" />}</div>}
     {error && <p className="error-text" role="alert">{error}</p>}

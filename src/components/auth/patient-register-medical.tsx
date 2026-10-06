@@ -14,7 +14,7 @@ const strokeTypeOptions = [
   { value: "", label: "เลือกประเภทโรคหลอดเลือดสมอง" },
   { value: "ischemic", label: "โรคหลอดเลือดสมองตีบหรืออุดตัน" },
   { value: "hemorrhagic", label: "โรคหลอดเลือดสมองแตก" },
-  { value: "tia", label: "ภาวะสมองขาดเลือดชั่วคราว" },
+  // { value: "tia", label: "ภาวะสมองขาดเลือดชั่วคราว" }, // Temporarily disabled.
   { value: "unspecified", label: "ไม่ทราบ / ไม่ระบุ" },
 ];
 
@@ -140,10 +140,12 @@ export function PatientRegisterMedical() {
             <CheckCircle2 className="notice-icon" size={36} aria-hidden="true" />
             <h2 id="medical-notice-title">{notice.title}</h2>
             <p id="medical-notice-message">{notice.message}</p>
-            <Link className="auth-button primary" href="/register/review">ตรวจทานข้อมูล</Link>
-            <button className="auth-button primary" type="button" onClick={() => dialogRef.current?.close()}>
-              กลับไปตรวจข้อมูล
-            </button>
+            <div className="medical-dialog-actions">
+              <Link className="auth-button primary" href="/register/review">ตรวจสอบข้อมูล</Link>
+              <button className="auth-button outline" type="button" onClick={() => dialogRef.current?.close()}>
+                แก้ไขข้อมูล
+              </button>
+            </div>
           </>
         )}
       </dialog>

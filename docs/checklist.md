@@ -2,6 +2,20 @@
 
 - Onboarding/Antigravity docs (2026-10-06): README replaced with first-clone instructions for dependencies/environment/keys/Docker/Prisma/catalog/MediaPipe, Demo vs normal startup and troubleshooting. Added GEMINI.md pointing to shared AGENTS.md rules; linked setup/account/Demo docs to README. Verified UTF-8, Markdown fences/local links, npm/setup-file references, Compose configuration and read-only Prisma migration status (up to date). No runtime/schema change. Fresh-machine installation and live Antigravity rule loading were not executed; documentation compatibility was checked against official Google Rules docs.
 
+- Demo doctor credentials (2026-10-06): existing doctor renamed to `doctor`, requested password hashed and private credentials synchronized; same DB ID/role/manifest preserved. Demo Login browser check passed through `/doctor/login` to `/doctor` on port 3001; Demo identity preserved and wrong password rejected with 401. TypeScript/targeted ESLint passed. No schema/new account or patient-data change.
+
+- Shared MoRe logo (2026-10-06): UI ready for review. Transparent vector movement symbol + theme-aware wordmark in one hero/compact/navigation component, replacing all visible raster-logo uses without changing forms/navigation/logic or adding camera logos/dependencies. Passed 216 browser layout assertions across 9 routes, mobile 390px, iPad portrait 820px/landscape 1180px and desktop 1440px, both themes and all 3 font sizes. Checked transparency, square proportions, wordmark order/theme color, compact hierarchy, heading overlap and page overflow; 0 page errors. Reviewed representative screenshots and Login error-dialog smoke check. TypeScript, full ESLint and production build passed. Emulated browser verification; physical-device review remains with the user.
+
+- Registration redirect (2026-10-06): successful confirmation now routes directly to Login (`/`) and clears the draft. Mocked-response browser checks passed for success redirect and failure remaining on review; TypeScript/targeted ESLint passed. Account smoke script updated for Login destination and new modal label; full account persistence suite not rerun.
+
+- Medical registration modal (2026-10-06): requested button labels, 16px gap and transparent edit outline implemented. Browser assertions passed at 390/820/1440px for labels, spacing, border/transparency, overflow and edit-close behavior. TypeScript/targeted ESLint passed. UI ready for review; no API/DB change.
+
+- TIA option (2026-10-06): commented out in the registration medical form and API allowlist at user request. Existing data/labels retained. TypeScript and targeted ESLint passed; browser/API runtime checks not rerun for this option-only change.
+
+- Initial-password registration fix (2026-10-06): user-authorized last-four-digit registration is enabled in `/api/auth/register/start`. Server derives and hashes the initial password; custom passwords retain the 8-character minimum and registration keeps `password_change_required=false`. Verified real API draft hash (including leading zeroes and ignored client password), invalid-ID rejection, custom short/valid password behavior, and browser initial-password navigation to `/register/personal`. TypeScript and targeted ESLint passed. No account created during these focused checks; final persistence/login was not rerun. Existing account smoke expectation updated to accept initial registration.
+
+- Exercise picker update (2026-10-06): `/register/plan` allows only `seated-leg-raise`, displayed as “นั่งเหยียดขาบนเก้าอี้”. Module 2 remains expandable; other modules and exercises are disabled. TypeScript/targeted ESLint and browser selection/overflow assertions passed at 390, 820 and 1440px. UI-only restriction; authenticated clinician-template APIs and catalog persistence unchanged.
+
 Status labels:
 
 - UI: `Not started`, `In progress`, `Ready for review (รอตรวจ)`, `Passed`
@@ -279,6 +293,12 @@ Historical catalog-only results below are superseded by the 2026-10-05 account/t
 - Passed 40 updated browser checks across 10 representative routes at 320, 768, 1024, and 1440px: back precedes the heading, is static, scrolls with content, has at least a 44px touch target, and supports keyboard navigation to its original destination without browser errors.
 - Passed all 29 registration checks, including mobile landscape and larger tablets. ESLint and production build passed. These are emulated browser checks, not physical-device validation.
 - Exercise-selection form update: the individual exercise selection visual has been applied as a searchable module accordion for the existing MVP catalog. Editable sets/repetitions and any permission/schema changes remain out of this update and still belong to Doctor flows unless explicitly approved later.
+
+## Demo Mock Plan Verification (2026-10-06)
+
+- UI complete: Demo-only “แผนทดลอง — นั่งเหยียดขา” has MOCK badges on its card/details, selected plan, and result history/details. Targets are one existing `demo-knee-extension` exercise, left side, 1 set × 5 repetitions; clear nonclinical descriptions and existing Demo criteria remain in place.
+- API/DB complete: additive, idempotent Demo seed reuses version 1 and existing exercise/criteria; no schema changes or automatic patient assignment. Results expose Mock provenance through the existing source-template relationship and copied plan-exercise version. Existing daily snapshots remain unchanged when selecting a different plan.
+- Verified: two seed runs preserve existing templates/plans/exercises/sets; actual Login and selection, simulated five-repetition training, pause/resume, save and PostgreSQL readback; result history/reload; 122 browser checks over 18 viewport/theme/font combinations and 14 Demo policy checks. TypeScript, lint and production build pass. Real-person camera movement and physical-device checks remain unverified. Usage and local review details: `docs/demo-ready.md`.
 
 ## Decision Points
 

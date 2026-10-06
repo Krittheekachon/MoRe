@@ -10,6 +10,7 @@ import "@fontsource/ibm-plex-sans-thai/latin-600.css";
 import "@fontsource/ibm-plex-sans-thai/latin-700.css";
 import "./globals.css";
 import "./system.css";
+import "./logo.css";
 import { DemoProvider } from "@/components/app/demo-provider";
 import { DisplaySettingsProvider } from "@/components/app/display-settings";
 import { fontSizeCookie, parseFontSize, themeCookie, parseTheme } from "@/lib/display-settings";

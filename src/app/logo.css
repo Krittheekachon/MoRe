@@ -1,0 +1,34 @@
+.more-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+  color: var(--foreground);
+  vertical-align: middle;
+  background: transparent;
+}
+.more-logo__symbol {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  color: var(--logo-accent);
+}
+.more-logo__type { display: block; min-width: 0; }
+.more-logo__word {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+.more-logo--hero { height: 62px; gap: 12px; }
+.more-logo--hero .more-logo__symbol { width: 56px; height: 56px; }
+.more-logo--hero .more-logo__word { font-size: 2rem; font-weight: 700; }
+.more-logo--navigation .more-logo__symbol { width: 40px; height: 40px; }
+.more-logo--navigation .more-logo__word { font-size: inherit; font-weight: 700; }
+.more-logo__type small { display: block; font-size: 0.75rem; font-weight: 400; line-height: 1.5; color: var(--ui-muted); }

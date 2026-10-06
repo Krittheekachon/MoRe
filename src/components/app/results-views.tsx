@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { PageHeading, EmptyState } from "./shell";
 import type { ResultSession } from "@/lib/results-service";
+import { MockBadge } from "../ui/mock-badge";
 
 function groups(session: ResultSession) {
   const metrics = new Map<string, { label: string; values: number[] }>();
@@ -28,11 +29,11 @@ export function ResultsHistory({ sessions, base = "/patient", date: initialDate 
       return <Link key={day} href={`/patient/progress/calendar/${day}`} aria-label={`${day} ${count} เซต`}><b>{index + 1}</b><small>{count ? `${count} เซต` : "-"}</small></Link>;
     })}</div></>}
     <p className="muted">แสดงเฉพาะเซตที่บันทึกแล้ว · วันตาม Asia/Bangkok · สูงสุด 200 รอบการฝึกล่าสุด</p>
-    {!displayed.length ? <EmptyState title="ยังไม่มีผลที่บันทึก" /> : <div className="exercise-list">{displayed.map(session => <article className="exercise-row" key={session.id}><div><h2>{session.exercise}</h2><p>{session.date} · {session.sets.length} เซต · {session.sets.reduce((sum, set) => sum + set.repetitions.length, 0)} ครั้ง</p>{groups(session).map(group => <p key={group.label}>{group.label} · MAX {Math.max(...group.values).toFixed(2)}° · AVG {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°</p>)}</div><Link className="command" href={`${base}/sessions/${session.id}`}>รายละเอียดผล</Link></article>)}</div>}
+    {!displayed.length ? <EmptyState title="ยังไม่มีผลที่บันทึก" /> : <div className="exercise-list">{displayed.map(session => <article className="exercise-row" key={session.id}><div><h2>{session.exercise} {session.isMock && <MockBadge />}</h2>{session.isMock && <p>{session.sourceTemplate?.name} · ผล Mock สำหรับทดสอบระบบ</p>}<p>{session.date} · {session.sets.length} เซต · {session.sets.reduce((sum, set) => sum + set.repetitions.length, 0)} ครั้ง</p>{groups(session).map(group => <p key={group.label}>{group.label} · MAX {Math.max(...group.values).toFixed(2)}° · AVG {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°</p>)}</div><Link className="command" href={`${base}/sessions/${session.id}`}>รายละเอียดผล</Link></article>)}</div>}
   </>;
 }
 export function ResultDetail({ session, back }: { session: ResultSession; back: string }) {
-  return <><PageHeading title={session.exercise} subtitle={session.date} back={back} />{session.code.startsWith("demo-") && <p className="notice">DEMO สังเคราะห์ · ไม่ใช่ผลประเมินทางคลินิก</p>}
+  return <><PageHeading title={session.exercise} subtitle={session.date} back={back} />{session.isMock && <p className="notice"><MockBadge /> {session.sourceTemplate?.name} · {session.sourceTemplate?.code} · รุ่น {session.sourceTemplate?.version} · ผลทดสอบระบบ ไม่ใช่ผลจากแผนรักษาที่หมอยืนยัน</p>}{session.code.startsWith("demo-") && <p className="notice">DEMO สังเคราะห์ · ไม่ใช่ผลประเมินทางคลินิก</p>}
     {groups(session).map(group => <p key={group.label}><strong>{group.label}</strong> · MAX {Math.max(...group.values).toFixed(2)}° · AVG {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°</p>)}
     {session.sets.map(set => <section className="results-set" key={set.id}><h2>เซต {set.number}: {set.repetitions.length} / {set.target} ครั้ง</h2><p>{set.elapsed ?? 0} วินาที · บันทึก {set.savedAt ? new Date(set.savedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}</p>
       {!set.repetitions.length ? <p>บันทึกเซตโดยไม่มีรอบที่ทำครบ</p> : <div className="table-scroll"><table><thead><tr><th>ครั้ง</th><th>ข้าง</th><th>ตัวชี้วัด</th><th>เริ่ม</th><th>สูงสุด</th><th>กลับ</th><th>เกณฑ์</th><th>จุดตรวจ</th></tr></thead><tbody>{set.repetitions.flatMap(rep => rep.metrics.map(metric => <tr key={`${rep.number}:${metric.metricId}`}><td>{rep.number}</td><td>{rep.side === "left" ? "ซ้าย" : "ขวา"}</td><td>{metric.label} v{metric.definitionVersion}</td><td>{metric.start?.toFixed(2) ?? "-"}°</td><td>{metric.peak.toFixed(2)}°</td><td>{metric.end?.toFixed(2) ?? "-"}°</td><td>v{rep.criteriaVersion} · {rep.correct ? "เข้าเกณฑ์" : "นอกเกณฑ์"}{session.code.startsWith("demo-") && " Demo"}</td><td>{rep.checkpoints.map(check => `${check.phase}: ${check.value?.toFixed(2) ?? "-"} (${check.passed ? "ผ่าน" : "ไม่ผ่าน"})`).join(" / ")}</td></tr>))}</tbody></table></div>}</section>)}

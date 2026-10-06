@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import type { PoseCriteria, Side } from "./pose/types";
 
 export const demoExerciseCode = "demo-knee-extension";
+export const demoDoctorLoginName = "doctor";
 type Manifest = { doctorId: number; patients: { id: number; hn: string; lookup: string }[]; exerciseId: number };
 export async function demoManifest(): Promise<Manifest | null> {
   try {
@@ -19,7 +20,7 @@ export async function isDemoPatient(id: number) {
 }
 export async function isDemoStaff(id: number) {
   const manifest = await demoManifest();
-  return manifest?.doctorId === id && !!await prisma.user.findFirst({ where: { id, login_name: "more-demo-doctor", role: "doctor", is_active: true }, select: { id: true } });
+  return manifest?.doctorId === id && !!await prisma.user.findFirst({ where: { id, login_name: demoDoctorLoginName, role: "doctor", is_active: true }, select: { id: true } });
 }
 export function demoEnabled() { return process.env.MORE_DEMO_MODE === "1"; }
 export async function demoCriteria(patientId: number, exerciseId: number, side: Side): Promise<PoseCriteria | undefined> {

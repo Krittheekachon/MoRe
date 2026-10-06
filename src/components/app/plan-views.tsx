@@ -7,6 +7,9 @@ import { exercises, initialPlan, type PlanItem, type ExerciseId } from "@/lib/de
 import { useDemo } from "./demo-provider";
 import { PageHeading } from "./shell";
 
+// Add exercise IDs here when additional exercises are ready for selection.
+const selectableExerciseIds: readonly ExerciseId[] = ["seated-leg-raise"];
+
 export function PlanSelection({ registration = false }: { registration?: boolean }) {
   const { setPlans } = useDemo();
   const router = useRouter();
@@ -20,7 +23,7 @@ export function PlanSelection({ registration = false }: { registration?: boolean
     4: "การเดินและการทรงตัวขั้นสูง",
     5: "การเดินขั้นสูงและเคลื่อนไหวคล่องตัว",
   };
-  const enabledModules = [1, 2];
+  const enabledModules = [2];
   const modules = Object.keys(moduleTitles).map(Number).map(module => ({
     id: module,
     enabled: enabledModules.includes(module),
@@ -28,6 +31,7 @@ export function PlanSelection({ registration = false }: { registration?: boolean
     exercises: exercises.filter(exercise => exercise.module === module && (
       !normalizedQuery ||
       exercise.name.toLowerCase().includes(normalizedQuery) ||
+      (exercise.id === "seated-leg-raise" && "นั่งเหยียดขาบนเก้าอี้".includes(normalizedQuery)) ||
       exercise.english.toLowerCase().includes(normalizedQuery) ||
       (moduleTitles[module] ?? "").toLowerCase().includes(normalizedQuery)
     )),
@@ -35,6 +39,7 @@ export function PlanSelection({ registration = false }: { registration?: boolean
     ? module.exercises.length > 0
     : !normalizedQuery || module.title.toLowerCase().includes(normalizedQuery) || `module ${module.id}`.includes(normalizedQuery));
   const toggleExercise = (id: ExerciseId, checked: boolean) => {
+    if (!selectableExerciseIds.includes(id)) return;
     setSelected(current => checked ? [...current, id] : current.filter(item => item !== id));
   };
   return (
@@ -56,10 +61,10 @@ export function PlanSelection({ registration = false }: { registration?: boolean
             <div className="exercise-picker-options">
               {module.exercises.map(exercise => (
                 <label className="exercise-picker-option" key={exercise.id}>
-                  <input type="checkbox" checked={selected.includes(exercise.id)} onChange={event => toggleExercise(exercise.id, event.target.checked)} />
+                  <input type="checkbox" disabled={!selectableExerciseIds.includes(exercise.id)} checked={selected.includes(exercise.id)} onChange={event => toggleExercise(exercise.id, event.target.checked)} />
                   <span>
-                    <strong>{exercise.name}</strong>
-                    <small>{exercise.english}</small>
+                    <strong>{exercise.id === "seated-leg-raise" ? "นั่งเหยียดขาบนเก้าอี้" : exercise.name}</strong>
+                    <small>{exercise.english}{!selectableExerciseIds.includes(exercise.id) && " · ยังไม่เปิดใช้งาน"}</small>
                   </span>
                 </label>
               ))}
@@ -77,7 +82,7 @@ export function PlanSelection({ registration = false }: { registration?: boolean
       </div>
       <div className="exercise-picker-actions">
         <button className="command primary" disabled={!selected.length} onClick={() => {
-          const items = selected.map(exerciseId => {
+          const items = selected.filter(id => selectableExerciseIds.includes(id)).map(exerciseId => {
             const exercise = exercises.find(item => item.id === exerciseId)!;
             return { exercise_id: exercise.id, target_sets: 3, target_reps_per_set: 10, selected_side: exercise.side ? "left" : "none", schedule_type: "daily" as const, weekdays: [] };
           });

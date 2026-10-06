@@ -33,12 +33,11 @@ async (page) => {
       await current.locator("#stroke-type").selectOption("unspecified");
       await current.locator("#stroke-diagnosed-on").fill("2026-01-01");
       await current.locator("form button[type=submit]").click();
-      await current.getByRole("link", { name: "ตรวจทานข้อมูล", exact: true }).click();
+      await current.getByRole("link", { name: "ตรวจสอบข้อมูล", exact: true }).click();
       await current.waitForURL("**/register/review");
       await current.getByRole("button", { name: "ยืนยันข้อมูล", exact: true }).click();
-      await current.waitForURL("**/register/done");
-      check(await current.getByRole("heading", { name: "ลงทะเบียนสำเร็จ" }).isVisible(), "signup");
-      await current.getByRole("link", { name: "เข้าสู่ระบบ", exact: true }).click(); await current.waitForLoadState("networkidle");
+      await current.waitForURL(url => url.origin === origin && url.pathname === "/");
+      check(await current.locator("#national-id").isVisible(), "signup redirects to login");
       await current.locator("#national-id").fill(c.nationalId);
       await current.locator("#password").fill(c.password);
       await current.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).click();
@@ -78,7 +77,7 @@ async (page) => {
     check((await api(a, "/api/auth/register", registration)).status() === 409, "duplicate account blocked");
     check((await api(a, "/api/auth/register", { ...registration, role: "admin" })).status() === 400, "final registration role blocked");
     check((await api(a, "/api/auth/register", { ...registration, date_of_birth: "9999-01-01" })).status() === 400, "future date rejected");
-    check((await api(a, "/api/auth/register/start", { nationalId: credentials[0].nationalId, useInitial: true })).status() === 400, "unapproved initial password blocked");
+    check((await api(a, "/api/auth/register/start", { nationalId: credentials[0].nationalId, useInitial: true })).status() === 200, "initial password registration accepted");
     await pages[0].goto(`${origin}/doctor`);
     await pages[0].getByRole("heading", { name: "404", exact: true }).waitFor();
     check(new URL(pages[0].url()).pathname === "/doctor", "patient cannot enter doctor workspace");

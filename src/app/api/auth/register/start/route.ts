@@ -12,9 +12,8 @@ export async function POST(request: Request) {
     const lookup = nationalIdLookup(id);
     limitAttempts("registration-global", 100);
     limitAttempts(`registration:${lookup}`, 10);
-    // Four-digit registration remains blocked pending approval of its real-account policy.
-    if (data.useInitial) throw new AccountError("สำหรับบัญชีจริง กรุณาตั้งรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษรก่อนดำเนินการ");
-    const hash = await hashPassword(password(data, "password"));
+    // Derive the initial password server-side; never trust a supplied initial password.
+    const hash = await hashPassword(data.useInitial ? id.slice(-4) : password(data, "password"));
     const session = await registrationSession();
     session.lookup = lookup;
     session.encryptedId = encryptNationalId(id);

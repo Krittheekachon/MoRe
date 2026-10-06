@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { MoreLogo } from "@/components/ui/more-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, ArrowLeft, Menu, X } from "lucide-react";
@@ -24,13 +24,13 @@ export function AppShell({ children, doctor = false, patientProfile, demo = fals
     <a className="skip-link" href="#workspace-content">ข้ามไปเนื้อหา</a>
     <header className="app-topbar">
       {doctor && <button ref={menuRef} className="icon-command mobile-menu" aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} title={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>}
-      <Link className="app-brand" href={doctor ? "/doctor" : "/patient"}><Image src="/more-mark.png" alt="" width={40} height={40} /><span>MoRe<small>ระบบฟื้นฟูผู้ป่วย</small></span></Link>
+      <Link className="app-brand" href={doctor ? "/doctor" : "/patient"}><MoreLogo size="navigation" tagline /></Link>
       <span className="app-role">{doctor ? "แพทย์ / นักกายภาพ" : "ผู้ป่วย"}</span>
       {demo && <span className="demo-label" aria-label="DEMO สังเคราะห์">DEMO<span className="demo-label-detail"> สังเคราะห์</span></span>}
       <LogoutButton compact destination={doctor ? "/doctor/login" : "/"} />
     </header>
     <aside className="app-sidebar">
-      {!doctor && <Link className="app-brand sidebar-brand" href="/patient"><Image src="/more-mark.png" alt="" width={40} height={40} /><span>MoRe<small>ระบบฟื้นฟูผู้ป่วย</small></span></Link>}
+      {!doctor && <Link className="app-brand sidebar-brand" href="/patient"><MoreLogo size="navigation" tagline /></Link>}
       <nav id="workspace-navigation" className="app-navigation" data-open={menuOpen} aria-label={doctor ? "เมนูแพทย์" : "เมนูผู้ป่วย"} onKeyDown={event => { if (event.key === "Escape") { setMenuOpen(false); menuRef.current?.focus(); } }}>
       {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)} aria-current={(href === "/doctor" ? path === href || path.startsWith("/doctor/patients/") : href === "/patient" ? path === href : path.startsWith(href)) ? "page" : undefined}><Icon size={20} /><span>{label}</span></Link>)}
     </nav>

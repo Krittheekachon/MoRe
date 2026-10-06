@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { MoreLogo } from "@/components/ui/more-logo";
 
 const steps = ["ยืนยันตัวตน", "ข้อมูลส่วนตัว", "ข้อมูลสุขภาพ"];
 
@@ -6,7 +6,7 @@ export function RegisterIntro({ step, headingId }: { step: 1 | 2 | 3; headingId:
   return (
     <header className="register-intro">
       <div className="register-brand">
-        <Image className="login-mark register-mark" src="/more-mark.png" alt="MoRe" width={62} height={62} priority />
+        <MoreLogo className="register-mark" />
         <h1 id={headingId} aria-label="ลงทะเบียนผู้ป่วยใหม่"><span>ลงทะเบียน</span><span>ผู้ป่วยใหม่</span></h1>
       </div>
       <div className="register-current-step" aria-hidden="true">

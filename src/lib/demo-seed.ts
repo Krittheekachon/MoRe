@@ -4,7 +4,8 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { prisma } from "./prisma";
 import { encryptNationalId, hashPassword, nationalIdLookup } from "./account-security";
-import { demoExerciseCode } from "./demo-policy";
+import { demoDoctorLoginName, demoExerciseCode } from "./demo-policy";
+import { mockDemoTemplateCode } from "./mock-plan";
 
 type Credentials = { doctor: { loginName: string; password: string }; patients: { nationalId: string; password: string; hn: string; name: string }[] };
 export async function seedDemo() {
@@ -14,12 +15,12 @@ export async function seedDemo() {
   try { accounts = JSON.parse(await readFile(file, "utf8")); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    accounts = { doctor: { loginName: "more-demo-doctor", password: randomBytes(18).toString("base64url") }, patients: [1, 2].map(index => ({
+    accounts = { doctor: { loginName: demoDoctorLoginName, password: randomBytes(18).toString("base64url") }, patients: [1, 2].map(index => ({
       nationalId: `000000000000${index}`, password: randomBytes(18).toString("base64url"), hn: `MORE-DEMO-0${index}`, name: `DEMO ผู้ป่วยสังเคราะห์ ${index}`,
     })) };
     await writeFile(file, JSON.stringify(accounts, null, 2), { flag: "wx", mode: 0o600 });
   }
-  if (accounts.doctor.loginName !== "more-demo-doctor" || accounts.patients.length !== 2) throw new Error("Invalid Demo credentials file");
+  if (accounts.doctor.loginName !== demoDoctorLoginName || accounts.patients.length !== 2) throw new Error("Invalid Demo credentials file");
   stage = "password hashing";
   const hashes: string[] = [];
   for (const password of [accounts.doctor.password, ...accounts.patients.map(item => item.password)]) hashes.push(await hashPassword(password));
@@ -64,6 +65,16 @@ export async function seedDemo() {
         if (!existing) await tx.rehabilitationTemplate.create({ data: { template_code: code, name_th: `DEMO ทดลองระบบ ขา${index ? "ขวา" : "ซ้าย"}`, description: "สังเคราะห์ 2 เซต × 3 ครั้ง ใช้ทดสอบซอฟต์แวร์ ไม่ใช่แผนที่แพทย์ยืนยัน", created_by: doctor.id, created_at: now, updated_at: now,
           exercises: { create: { exercise_id: exercise.id, selected_side: side, target_sets: 2, target_reps_per_set: 3, sort_order: 1, instructions: "DEMO เท่านั้น ไม่มีการรับรองเกณฑ์ทางการแพทย์" } } } });
       }
+      stage = "mock template";
+      const mock = await tx.rehabilitationTemplate.findUnique({ where: { template_code: mockDemoTemplateCode }, include: { exercises: true } });
+      if (mock && (mock.created_by !== doctor.id || mock.exercises.length !== 1 || mock.exercises[0].exercise_id !== exercise.id)) throw new Error("Reserved Mock template conflict");
+      if (!mock) await tx.rehabilitationTemplate.create({ data: {
+        template_code: mockDemoTemplateCode, name_th: "แผนทดลอง — นั่งเหยียดขา", version_number: 1,
+        description: "MOCK สำหรับทดสอบระบบ Demo เท่านั้น · 1 เซต × 5 ครั้ง · ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน ใช้เกณฑ์มุม Demo เดิม",
+        created_by: doctor.id, created_at: now, updated_at: now,
+        exercises: { create: { exercise_id: exercise.id, selected_side: "left", target_sets: 1, target_reps_per_set: 5, sessions_per_day: 1, schedule_type: "daily", sort_order: 1,
+          instructions: "MOCK สำหรับทดสอบระบบเท่านั้น: นั่งเหยียดขา (seated knee extension) ขาซ้าย 1 เซต × 5 ครั้ง ใช้เกณฑ์มุม Demo เดิม ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน" } },
+      } });
       stage = "synthetic history";
       for (const [index, patient] of patients.entries()) {
         const code = `DEMO-HISTORY-${index + 1}`;

@@ -2,6 +2,10 @@
 
 Agent/onboarding documentation (2026-10-06): root `GEMINI.md` directs Antigravity/Gemini to the shared `AGENTS.md` rules and latest project docs. Root `README.md` now documents first clone, supported Node versions, independent environment keys, Docker/PostgreSQL, Prisma 7 migrations/client, catalog/model setup, Demo vs normal startup, local credentials and troubleshooting. Runtime and database behavior are unchanged by this documentation update.
 
+Logo update (2026-10-06): `MoreLogo` in `src/components/ui/more-logo.tsx` replaces visible uses of the small opaque `public/more-mark.png` with a transparent inline SVG movement symbol and a live MoRe wordmark. No original SVG was found; the raster reference is preserved. Shared hero/compact/navigation sizes retain existing branding locations, with compact registration branding above the heading (the previous mobile/iPad rule hid that existing slot). Symbol color is teal via `--logo-accent`; text follows `--foreground`, including the existing system theme. Login is more prominent; iPad does not enlarge the symbol. No navigation, form, data logic, dependencies or camera branding additions.
+
+Account policy (2026-10-06): the user authorizes real registration with the last four national-ID digits as the initial password. Derive it server-side and store only its hash. Registration does not require an immediate password change; custom/new passwords retain the 8-character minimum. This supersedes historical pending-policy/blocking notes.
+
 MoRe is a web-based stroke rehabilitation platform for patients and doctors/therapists. It supports home rehabilitation, camera-based movement assessment, rehabilitation plan assignment, and progress tracking. The system supports rehabilitation work; it does not replace clinical diagnosis or professional assessment.
 
 ## Product Scope

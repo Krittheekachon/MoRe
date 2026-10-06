@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { MoreLogo } from "@/components/ui/more-logo";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { accountRequest } from "@/lib/account-client";
@@ -87,14 +87,7 @@ export function PatientLogin() {
     <main className="login-page">
       <div className="auth-display-toolbar"><DisplaySettings /></div>
       <section className="login-content" aria-labelledby="login-heading">
-        <Image
-          className="login-mark"
-          src="/more-mark.png"
-          alt="MoRe"
-          width={62}
-          height={62}
-          priority
-        />
+        <MoreLogo size="hero" className="login-mark" />
         <header className="login-heading">
           <h1 id="login-heading">เข้าสู่ระบบ</h1>
           <p>เข้าสู่ระบบเพื่อเริ่มการฟื้นฟูของคุณ</p>
