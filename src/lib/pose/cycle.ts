@@ -1,4 +1,6 @@
 import type { CompletedRep, PoseCriteria, PosePoint } from "./types";
+import type { MovementSnapshot } from "./feedback-types";
+import { StableWindow } from "./stable-window";
 
 export function pointConfidence(point: PosePoint | undefined) {
   if (!point || !Number.isFinite(point.visibility)) return 0;
@@ -28,40 +30,62 @@ export class RepetitionCycle {
   private previous = -Infinity;
   private baseline = 0;
   private candidate: CompletedRep | null = null;
+  private stability = new StableWindow();
+  private reason = "รอยืนยันจุดเริ่มต้น";
   readonly repetitions: CompletedRep[] = [];
   constructor(private readonly criteria: PoseCriteria) {}
-  interrupt() { this.phase = "unarmed"; this.stableSince = null; this.candidate = null; }
+  get movement(): MovementSnapshot {
+    return { phase: this.phase === "unarmed" ? "preparing" : this.phase === "away" || this.candidate ? "moving" : "ready", completedReps: this.repetitions.length };
+  }
+  get debug() { return { state: this.phase === "unarmed" ? "รอจุดเริ่มต้น" : this.phase === "away" ? "รอกลับ" : "รอเหยียดออก", stableMs: this.stability.elapsed, requiredMs: this.criteria.stableMs, reason: this.reason }; }
+  private clearStability() { this.stableSince = null; this.stability.reset(); }
+  private stable(at: number) { if (this.criteria.stabilityGraceMs) return this.stability.pass(at, this.criteria.stabilityGraceMs) >= this.criteria.stableMs; this.stableSince ??= at; return at - this.stableSince >= this.criteria.stableMs; }
+  interrupt() { this.phase = "unarmed"; this.clearStability(); this.candidate = null; this.reason = "รอบที่ยังไม่จบถูกยกเลิก ต้องยืนยันจุดเริ่มต้นใหม่"; }
+  suspend(at = this.previous) {
+    if (this.criteria.stabilityGraceMs) { const expired = this.stability.fail(at, this.criteria.stabilityGraceMs); if (expired && this.phase === "start") this.candidate = null; this.reason = "ระงับเฟรมที่ไม่ผ่าน ไม่สะสมเวลาความนิ่ง"; }
+    else { this.clearStability(); if (this.phase === "start") this.candidate = null; }
+  }
   reset() { this.interrupt(); this.repetitions.length = 0; this.previous = -Infinity; }
   sample(angle: number | null, at: number, confidence = 1): CompletedRep | null {
     if (!Number.isFinite(at) || at <= this.previous) return null;
     if (at - this.previous > this.criteria.maxGapMs) this.interrupt();
     this.previous = at;
     if (angle === null || !Number.isFinite(angle) || angle < 0 || angle > 180 || !Number.isFinite(confidence) || confidence < this.criteria.minVisibility) { this.interrupt(); return null; }
+    if (this.phase === "start" && this.criteria.stabilityGraceMs && this.stability.expired(at, this.criteria.stabilityGraceMs)) { this.candidate = null; this.clearStability(); }
     const atStart = angle >= this.criteria.start.min && angle <= this.criteria.start.max;
     if (this.phase === "unarmed") {
-      if (!atStart) { this.stableSince = null; return null; }
-      this.stableSince ??= at;
-      if (at - this.stableSince >= this.criteria.stableMs) { this.phase = "start"; this.baseline = angle; this.stableSince = null; }
+      if (!atStart) { this.edgeFailure(angle, this.criteria.start, at); this.reason = "เข่ายังไม่อยู่ช่วงเริ่มต้น"; return null; }
+      this.reason = "กำลังยืนยันจุดเริ่มต้น";
+      if (this.stable(at)) { this.phase = "start"; this.baseline = angle; this.clearStability(); this.reason = "พร้อม รอเหยียดออก"; }
       return null;
     }
     if (this.phase === "start") {
-      if (atStart) { this.baseline = angle; this.stableSince = null; this.candidate = null; return null; }
-      if (angle < this.criteria.departureMin) { this.stableSince = null; this.candidate = null; return null; }
-      this.stableSince ??= at;
+      if (atStart) { this.baseline = angle; this.clearStability(); this.candidate = null; this.reason = "พร้อม รอเหยียดออก"; return null; }
+      if (angle < this.criteria.departureMin) {
+        if (this.criteria.stabilityGraceMs && angle >= this.criteria.departureMin - (this.criteria.stabilityEdgeTolerance ?? 0)) this.suspend(at);
+        else { this.clearStability(); this.candidate = null; }
+        this.reason = "ยังเหยียดไม่ถึงเกณฑ์ออก หรือยังไม่นิ่ง"; return null;
+      }
       this.candidate ??= { startedAt: at, completedAt: at, startAngle: this.baseline, peakAngle: angle, endAngle: angle, confidence };
       this.candidate.peakAngle = Math.max(this.candidate.peakAngle, angle);
       this.candidate.confidence = Math.min(this.candidate.confidence, confidence);
-      if (at - this.stableSince >= this.criteria.stableMs) { this.phase = "away"; this.stableSince = null; }
+      if (this.stable(at)) { this.phase = "away"; this.clearStability(); this.reason = "เหยียดออกแล้ว รอกลับ"; }
       return null;
     }
     this.candidate!.peakAngle = Math.max(this.candidate!.peakAngle, angle);
     this.candidate!.confidence = Math.min(this.candidate!.confidence, confidence);
-    if (!atStart) { this.stableSince = null; return null; }
-    this.stableSince ??= at;
-    if (at - this.stableSince < this.criteria.stableMs) return null;
+    const returned = this.criteria.returned ?? this.criteria.start;
+    if (angle < returned.min || angle > returned.max) { this.edgeFailure(angle, returned, at); this.reason = "ยังไม่กลับช่วงกลับ"; return null; }
+    this.reason = "กลับถึงช่วงแล้ว รอยืนยันความนิ่ง";
+    if (!this.stable(at)) return null;
     const rep = { ...this.candidate!, endAngle: angle, completedAt: at };
     this.repetitions.push(rep);
-    this.phase = "start"; this.baseline = angle; this.candidate = null; this.stableSince = null;
+    this.phase = atStart ? "start" : "unarmed"; this.baseline = angle; this.candidate = null; this.clearStability(); this.reason = "จบรอบ นับหนึ่งครั้ง";
     return rep;
+  }
+  private edgeFailure(angle: number, range: { min: number; max: number }, at: number) {
+    const tolerance = this.criteria.stabilityEdgeTolerance ?? 0;
+    if (this.criteria.stabilityGraceMs && angle >= range.min - tolerance && angle <= range.max + tolerance) this.suspend(at);
+    else this.clearStability();
   }
 }

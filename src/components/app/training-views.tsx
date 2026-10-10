@@ -60,13 +60,14 @@ export function TrainingHome({ patient, today, history }: { patient: PatientProf
 export function TrainingPlanSelection({ templates, activePlan, demo = false }: { templates: TrainingTemplate[]; activePlan: PatientTrainingPlan | null; demo?: boolean }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number | null>(activePlan?.templateId || null);
+  const [sets, setSets] = useState(1); const [reps, setReps] = useState(5); const [side, setSide] = useState<"left" | "right">("left");
   const [query, setQuery] = useState(""); const [pending, setPending] = useState(false); const [error, setError] = useState("");
   const search = query.trim().toLowerCase();
   const visible = templates.filter(template => `${template.name} ${template.code} ${template.items.map(item => item.exercise.name).join(" ")}`.toLowerCase().includes(search));
   async function select() {
     if (!selected || pending) return;
     setPending(true); setError("");
-    try { await accountRequest("/api/patient/training/plan", { templateId: selected }); router.push("/patient"); router.refresh(); }
+    try { await accountRequest("/api/patient/training/plan", { templateId: selected, ...(isMockPlan(templates.find(template => template.id === selected)?.code) ? { cameraTest: { sets, reps, side } } : {}) }); router.push("/patient"); router.refresh(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "กรุณาลองใหม่"); }
     finally { setPending(false); }
   }
@@ -74,11 +75,16 @@ export function TrainingPlanSelection({ templates, activePlan, demo = false }: {
     <PageHeading title="เลือกแผนการฝึก" subtitle={activePlan ? `แผนที่เลือก: ${activePlan.name} · ${activePlan.code}` : undefined} back="/patient" backLabel="กลับสู่แผนการฝึก" />
     <p className="exercise-picker-notice"><Info size={20} aria-hidden="true" />{demo ? "DEMO แผนสังเคราะห์สำหรับทดลองระบบ ไม่ใช่แผนรักษาที่หมอยืนยัน" : "กรุณาเลือกแผนที่แพทย์แนะนำ"}</p>
     {activePlan && <section className="training-current-plan"><h2>แผนของคุณ {isMockPlan(activePlan.templateCode) && <MockBadge />}</h2>{isMockPlan(activePlan.templateCode) && <p>ข้อมูล Mock สำหรับทดสอบระบบ ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน</p>}<ul>{activePlan.items.map(item => <li key={item.id}>{item.exercise.name} · {item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {schedule(item)}</li>)}</ul></section>}
-    <label className="exercise-picker-search"><Search size={22} aria-hidden="true" /><span className="sr-only">ค้นหาแผนฝึก</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="ค้นหาชื่อแผนหรือท่าฝึก" /></label>
+    <label className="exercise-picker-search"><Search size={22} aria-hidden="true" /><span className="sr-only">ค้นหาแผนฝึก</span>
+      {/* Chrome iOS Autofill injects __gCrUniqueID before hydration. This escape
+          hatch silences all attribute mismatches on this input, not just that ID.
+          The empty initial query and SSR attributes are checked separately. */}
+      <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="ค้นหาชื่อแผนหรือท่าฝึก" suppressHydrationWarning />
+    </label>
     {!templates.length ? <EmptyState title="ยังไม่มีแผนกลางที่พร้อมให้เลือก"><p>กรุณาติดต่อทีมรักษาเพื่อจัดแผนฝึก</p></EmptyState> : <div className="exercise-picker-modules">{visible.map(template => <details className="exercise-picker-module" key={template.id} open={selected === template.id || undefined}>
       <summary><span><b>{template.name}</b> {isMockPlan(template.code) && <MockBadge />}<small> {template.code} · รุ่น {template.version}</small></span><ChevronDown size={24} /></summary>
       <div className="exercise-picker-options"><label className="exercise-picker-option"><input type="radio" name="training-template" value={template.id} checked={selected === template.id} disabled={pending} onChange={() => setSelected(template.id)} /><span><strong>เลือก {template.name}</strong>{template.description && <small>{template.description}</small>}</span></label>
-        {isMockPlan(template.code) && <p><MockBadge /> ข้อมูลทดสอบระบบเท่านั้น ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน</p>}
+        {isMockPlan(template.code) && <><p className="notice">โหมดทดสอบกล้อง · แผนกลางสำหรับทดสอบ MediaPipe · ไม่ใช่แผนรักษา</p><p>Module {template.items[0]?.exercise.module} · {template.items[0]?.exercise.moduleName}</p>{selected === template.id && <div className="filter-bar"><label>จำนวนเซต<input type="number" min={1} max={20} step={1} value={sets} disabled={pending} onChange={event => setSets(Number(event.target.value))} /></label><label>ครั้งต่อเซต<input type="number" min={1} max={100} step={1} value={reps} disabled={pending} onChange={event => setReps(Number(event.target.value))} /></label><label>ข้างที่ฝึก<select value={side} disabled={pending} onChange={event => setSide(event.target.value as "left" | "right")}><option value="left">ซ้าย</option><option value="right">ขวา</option></select></label></div>}</>}
         <ul className="training-template-items">{template.items.map(item => <li key={item.id}><strong>{item.exercise.name}</strong><p>{item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {schedule(item)}</p><p>ข้าง: {sides[item.side || ""] || (item.exercise.supportsSide ? "เลือกก่อนฝึก" : "ไม่แยกข้าง")}</p>{item.instructions && <p>{item.instructions}</p>}</li>)}</ul>
       </div></details>)}{!visible.length && <EmptyState title="ไม่พบแผนที่ตรงกับคำค้น" />}</div>}
     {error && <p className="error-text" role="alert">{error}</p>}

@@ -1,5 +1,7 @@
 # กล้องและการบันทึกผลรายเซต MoRe
 
+2026-10-07: โหมดทดสอบกล้องเลือกผ่าน module และ plan API เดิมได้แล้ว ค่าเริ่มต้น 1 × 5, ข้างที่เลือกส่งผ่านแผนไปกล้อง, แสดงมุมจาก landmarks จริง และซ่อนปุ่มจำลองรอบ ใช้ test adapter แยกจาก registry ท่าจริง รายละเอียดการเปิด/ปิด บัญชี seed, LAN HTTPS และผลตรวจล่าสุดอยู่ที่ [camera-test-mode.md](camera-test-mode.md) งานนี้ไม่เปิดเกณฑ์ทางคลินิกหรือแก้ logic ท่าจริงของเพื่อน
+
 ## สถานะ 2026-10-05
 
 ### Demo Exception ที่ผู้ใช้อนุญาตล่าสุด
@@ -107,3 +109,15 @@ Regression แผนฝึกเดิมผ่านอีกครั้ง: 2
 6. แผนกลางที่หมอเป็นผู้สร้างจริง พร้อมเซต/ครั้ง/ความถี่/วันฝึก และวิธีรับรองข้อมูล/เวอร์ชันก่อนใส่ registry
 
 หลังได้ข้อมูลจึงเพิ่ม definition/checkpoint ที่ยืนยันใน schema เดิมและ registry อ้าง IDs/รุ่นตรงกัน แล้วตรวจด้วยวิดีโอที่ได้รับอนุญาตและกล้องอุปกรณ์จริงก่อนเปิดให้คนไข้ ไม่ใช้ค่าจาก fixture เป็น prescription
+
+## Repetitions beyond the target (2026-10-10)
+
+PoseCamera no longer auto-pauses at target repetitions, for live camera or the existing Demo simulation. The target is a display goal; the completed count can show 7 / 5. Stop or Save still uses the existing pause/save lifecycle. Recording validation no longer rejects repetitions solely for exceeding exercise_sets.target_reps; elapsed time, completed-round validation, ownership, correctness, retry idempotency and cancelled-set protections remain unchanged. All accepted repetitions are stored through the existing schema without truncation; saved-set progress is unchanged.
+
+Shared-plan recording regression now saves seven repetitions for a five-repetition target and confirms all seven stored rows. Passed 17 checks plus lint/typecheck. Actual camera motion and physical iPad review remain pending.
+## Reset retains camera/model and correctness diagnostics (2026-10-10)
+
+Confirmed Reset issue: discard(false) cleared both active criteria and measurement preview criteria. The stream/worker were not explicitly closed, but losing the definition stopped angle/skeleton processing until another Start. Reset now retains the existing preview criteria while clearing the draft counter, countdown/preparation and local result; camera stream and model worker remain unchanged. Exit still closes resources. Camera debug shows the latest completed repetition peak rounded to the same two decimals as save correctness, plus its actual correct/incorrect decision and target bounds; unfinished/cancelled repetitions do not become correct repetitions.
+
+Confirmed semantic distinction: feedback can turn green at 160–170 before an eventual peak above 170; current correctness evaluates the maximum of a completed round, not merely passing through the target. A clarification is pending before changing this accepted criterion. No correctness thresholds/schema/real-exercise implementation were changed in this update. Feedback 79 and readiness 259 tests pass, as do lint/typecheck. Physical iPad/human motion remains pending.
+- Reset preview fix verified: Chromium camera hydration/lifecycle 56 checks passed, including unchanged worker count (1), live original track and continued blank-frame guidance after Reset; zero hydration warnings. Shared recording 17 plus lint/typecheck passed. Correctness semantic clarification remains pending; last-completed peak/decision debug added. Physical iPad pending.

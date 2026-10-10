@@ -60,11 +60,11 @@ async (page) => {
     await pages[0].waitForLoadState("networkidle");
     check(pages[0].url() === camera && (await pages[0].locator(".summary-band strong").first().textContent()).includes("10"), "camera receives actual target");
     check(await pages[0].getByRole("button", { name: "ยังไม่เปิดบันทึกผล", exact: true }).isDisabled(), "camera cannot save mock results to real progress");
-    await pages[0].getByRole("button", { name: "เริ่ม / ทำต่อ", exact: true }).click();
-    await pages[0].getByRole("button", { name: "หยุดพัก", exact: true }).waitFor();
+    await pages[0].getByRole("button", { name: /^(เริ่ม|ทำต่อ)$/, exact: true }).click();
+    await pages[0].getByRole("button", { name: "หยุด", exact: true }).waitFor();
     check(await pages[0].getByRole("button", { name: "การแสดงผล", exact: true }).count() === 0, "active camera has no settings entry");
     await pages[0].getByRole("button", { name: "เพิ่มครั้งตัวอย่าง", exact: true }).click();
-    await pages[0].getByRole("button", { name: "หยุดพัก", exact: true }).click();
+    await pages[0].getByRole("button", { name: "หยุด", exact: true }).click();
     await pages[0].getByRole("button", { name: "การแสดงผล", exact: true }).click();
     await pages[0].getByRole("button", { name: "เสร็จสิ้น", exact: true }).click();
     check(await pages[0].getByRole("region", { name: "พักการฝึก" }).isVisible() && (await pages[0].locator(".summary-band strong").first().textContent()).includes("1 / 10"), "settings keep paused counters");

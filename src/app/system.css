@@ -373,9 +373,5 @@ html[data-theme="dark"] .system-app :is(input, textarea)::placeholder { color: v
 .view-tabs a { display: inline-flex; align-items: center; min-height: 48px; padding: 10px 16px; border-bottom: 2px solid var(--line); }
 .demo-source label, .plan-exercise > label, .plan-exercise fieldset label { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px; cursor: pointer; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 16px; }
-.camera-workspace.patient-app { grid-template-columns: minmax(0, 1fr); }
-.camera-workspace.patient-app .app-sidebar { display: none; }
-.camera-workspace.patient-app .app-topbar { display: flex; }
-.camera-workspace.patient-app .app-main { grid-column: 1; padding-bottom: 32px; }
 .app-topbar .demo-label { flex-shrink: 0; }
 @media(max-width: 520px) { .app-topbar .demo-label-detail { display: none; } .app-topbar:has(.demo-label) .app-brand small { display: none; } }

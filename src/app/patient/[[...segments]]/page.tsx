@@ -4,10 +4,10 @@ import { ProfileView, ProfileEdit, PasswordForm } from "@/components/app/patient
 import { ResultsHistory, ResultDetail } from "@/components/app/results-views";
 import { readResults } from "@/lib/results-service";
 import { trainingDay } from "@/lib/training-calendar";
-import { demoEnabled, demoExerciseCode, isDemoPatient } from "@/lib/demo-policy";
+import { cameraTestEnabled, demoEnabled, demoExerciseCode, isDemoPatient } from "@/lib/demo-policy";
 import { TrainingHome, TrainingExercises, TrainingGuide, TrainingPlanSelection } from "@/components/app/training-views";
 import { CameraView } from "@/components/app/camera-view";
-import { KneeCamera } from "@/components/app/knee-camera";
+import { PoseCamera } from "@/components/app/pose-camera";
 import { approvedPoseCriteria } from "@/lib/pose/approved-criteria";
 import { exercises, type ExerciseId } from "@/lib/demo-data";
 import { requirePatient } from "@/lib/account-session";
@@ -23,6 +23,8 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
   const patient = await requirePatient(path === "change-password");
   const patientId = Number(patient.id);
   const demo = demoEnabled() && await isDemoPatient(patientId);
+  const cameraTest = cameraTestEnabled();
+  let testContent = false;
   const now = new Date();
   const trainingRoute = !path || path === "exercises" || path === "plan" || (segments[0] === "exercises" && segments.length === 3 && ["guide", "camera", "result"].includes(segments[2]));
   if (trainingRoute) {
@@ -60,8 +62,9 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
     else if (path === "exercises") content = <TrainingExercises patient={patient} today={today!} />;
     else if (path === "plan") content = <TrainingPlanSelection templates={templates} activePlan={activePlan} demo={demo} />;
     else if (segments[2] === "guide") content = <TrainingGuide item={assignment!} />;
-    else if (segments[2] === "camera" && ["seated-leg-raise", demoExerciseCode].includes(assignment!.exercise.code)) content = <KneeCamera key={assignment!.id} assignment={assignment!} demo={demo && assignment!.exercise.code === demoExerciseCode} approvalAvailable={!!approvedPoseCriteria[assignment!.exercise.code] || (demo && assignment!.exercise.code === demoExerciseCode)} />;
+    else if (segments[2] === "camera" && (!!approvedPoseCriteria[assignment!.exercise.code] || ["seated-leg-raise", demoExerciseCode].includes(assignment!.exercise.code))) content = <PoseCamera key={assignment!.id} assignment={assignment!} cameraTest={cameraTest && assignment!.exercise.code === demoExerciseCode} demo={demo && assignment!.exercise.code === demoExerciseCode} approvalAvailable={!!approvedPoseCriteria[assignment!.exercise.code] || ((cameraTest || demo) && assignment!.exercise.code === demoExerciseCode)} />;
     else content = <CameraView key={assignment!.id} id={assignment!.exercise.code} assignment={assignment} resultOnly={segments[2] === "result"} />;
+    testContent = segments[2] !== "camera" && (assignment?.exercise.code === demoExerciseCode || !!today?.items.some(item => item.exercise.code === demoExerciseCode));
   }
   else if (path === "progress" || path === "progress/calendar") content = <ResultsHistory sessions={await readResults(patientId)} calendar={path.endsWith("calendar")} initialMonth={trainingDay(now).date.slice(0, 7)} />;
   else if (segments[0] === "sessions" && segments.length === 2) {
@@ -77,5 +80,5 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
     if (segments[0] === "progress" && (segments.length === 2 || (segments.length === 3 && segments[2] === "detail"))) content = <ResultsHistory key={id} sessions={await readResults(patientId)} exerciseCode={id} />;
     else notFound();
   } else notFound();
-  return <AppShell patientProfile={patient} demo={demo}>{content}</AppShell>;
+  return <AppShell patientProfile={patient} demo={demo}>{testContent && <p className="notice">โหมดทดสอบกล้อง · ผลทดสอบระบบ ไม่ใช่ผลฝึกทางคลินิก</p>}{content}</AppShell>;
 }

@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 import { AccountError } from "./account-validation";
-import { demoEnabled, demoExerciseCode, isDemoPatient } from "./demo-policy";
+import { cameraTestEnabled, demoEnabled, demoExerciseCode, isDemoPatient } from "./demo-policy";
+import { mockDemoTemplateCode } from "./mock-plan";
 import { trainingDay } from "./training-calendar";
 import type { DailyTraining, DailyTrainingItem, PatientTrainingPlan, TrainingExercise, TrainingHistory, TrainingTemplate } from "./training-types";
 
@@ -21,7 +22,7 @@ type Plan = Prisma.RehabilitationPlanGetPayload<{ include: typeof planRelations 
 type Exercise = Prisma.ExerciseGetPayload<{ include: typeof exerciseRelations }>;
 
 function exerciseDTO(exercise: Exercise): TrainingExercise {
-  return { id: exercise.id, code: exercise.code, name: exercise.name_th, english: exercise.name_en || "", module: exercise.module.module_number, view: exercise.camera_view, supportsSide: exercise.supports_side_selection, tutorial: exercise.tutorial_steps };
+  return { id: exercise.id, code: exercise.code, name: exercise.code === demoExerciseCode && cameraTestEnabled() ? "นั่งเหยียดขา - Seated Knee Extension" : exercise.name_th, english: exercise.name_en || "", module: exercise.module.module_number, moduleName: exercise.module.name_th, view: exercise.camera_view, supportsSide: exercise.supports_side_selection, tutorial: exercise.tutorial_steps };
 }
 
 function validTemplate(template: Template) {
@@ -39,7 +40,7 @@ function validTemplate(template: Template) {
 }
 
 function templateDTO(template: Template): TrainingTemplate {
-  return { id: template.id, code: template.template_code, name: template.name_th, description: template.description, version: template.version_number,
+  return { id: template.id, code: template.template_code, name: template.name_th, description: template.template_code === mockDemoTemplateCode && cameraTestEnabled() ? "แผนกลางทดสอบกล้องและ MediaPipe สำหรับทุกบัญชีคนไข้ · ไม่ใช่แผนรักษา" : template.description, version: template.version_number,
     items: template.exercises.map(item => ({ id: item.id, exercise: exerciseDTO(item.exercise), side: item.selected_side, targetSets: item.target_sets, targetReps: item.target_reps_per_set, sessionsPerDay: item.sessions_per_day, schedule: item.schedule_type, weekdays: item.weekdays.map(day => day.weekday).sort(), instructions: item.instructions })) };
 }
 
@@ -57,17 +58,22 @@ async function lockPatient(tx: Prisma.TransactionClient, patientId: number) {
 export async function listTrainingTemplates(patientId?: number) {
   const demo = patientId !== undefined && demoEnabled() && await isDemoPatient(patientId);
   const templates = await prisma.rehabilitationTemplate.findMany({ where: { is_active: true }, orderBy: [{ name_th: "asc" }, { id: "asc" }], include: templateRelations });
-  return templates.filter(item => validTemplate(item) && (demo ? item.template_code.startsWith("DEMO-") && item.exercises.every(exercise => exercise.exercise.code === demoExerciseCode) : !item.template_code.startsWith("DEMO-") && item.exercises.every(exercise => exercise.exercise.code !== demoExerciseCode))).map(templateDTO);
+  return templates.filter(item => validTemplate(item) && (
+    cameraTestEnabled() && item.template_code === mockDemoTemplateCode && item.exercises.length === 1 && item.exercises[0].exercise.code === demoExerciseCode ||
+    (demo ? item.template_code.startsWith("DEMO-") && (!cameraTestEnabled() || item.template_code === mockDemoTemplateCode) && item.exercises.every(exercise => exercise.exercise.code === demoExerciseCode) : !item.template_code.startsWith("DEMO-") && item.exercises.every(exercise => exercise.exercise.code !== demoExerciseCode))
+  )).map(templateDTO);
 }
 
 export async function readTrainingPlan(patientId: number) {
   const plan = await prisma.rehabilitationPlan.findFirst({ where: { patient_id: patientId, status: "active" }, orderBy: { id: "desc" }, include: planRelations });
+  if (plan?.exercises.some(item => item.exercise.code === demoExerciseCode) && !(cameraTestEnabled() && plan.sourceTemplate?.template_code === mockDemoTemplateCode) && (!demoEnabled() || !await isDemoPatient(patientId))) return null;
   return plan ? planDTO(plan) : null;
 }
 
-export async function selectTrainingTemplate(patientId: number, templateId: number, now = new Date(), configuredBy = patientId) {
+export async function selectTrainingTemplate(patientId: number, templateId: number, now = new Date(), configuredBy = patientId, test?: { sets: number; reps: number; side: "left" | "right" }) {
   const allowed = await listTrainingTemplates(patientId);
   if (!allowed.some(template => template.id === templateId)) throw new AccountError("แผนนี้ยังไม่พร้อมใช้งาน", 422);
+  if (test && (!cameraTestEnabled() || allowed.find(t => t.id === templateId)?.code !== mockDemoTemplateCode || !Number.isInteger(test.sets) || test.sets < 1 || test.sets > 20 || !Number.isInteger(test.reps) || test.reps < 1 || test.reps > 100 || !["left", "right"].includes(test.side))) throw new AccountError("Invalid camera test plan", 422);
   return prisma.$transaction(async tx => {
     await lockPatient(tx, patientId);
     await tx.$queryRaw`SELECT id FROM rehabilitation_templates WHERE id = ${templateId} FOR SHARE`;
@@ -75,7 +81,7 @@ export async function selectTrainingTemplate(patientId: number, templateId: numb
     if (!template || !validTemplate(template)) throw new AccountError("แผนนี้ยังไม่พร้อมใช้งาน กรุณาติดต่อทีมรักษา", 422);
     const active = await tx.rehabilitationPlan.findMany({ where: { patient_id: patientId, status: "active" }, include: planRelations });
     if (active.length > 1) throw new AccountError("มีแผนใช้งานซ้อนกัน กรุณาติดต่อทีมรักษา", 409);
-    if (active[0]?.source_template_id === templateId) return { plan: planDTO(active[0]), reused: true };
+    if (active[0]?.source_template_id === templateId && (!test || active[0].exercises.every(e => e.target_sets === test.sets && e.target_reps_per_set === test.reps && e.selected_side === test.side))) return { plan: planDTO(active[0]), reused: true };
     const today = trainingDay(now);
     const snapshot = await tx.rehabilitationDay.findUnique({ where: { patient_id_local_date: { patient_id: patientId, local_date: today.storedDate } } });
     const effectiveFrom = snapshot ? today.next : now;
@@ -88,10 +94,10 @@ export async function selectTrainingTemplate(patientId: number, templateId: numb
       plan_code: `MP-${randomUUID()}`, patient_id: patientId, created_by: configuredBy,
       source_template_id: template.id, created_at: now, updated_at: now,
       exercises: { create: template.exercises.map(item => ({
-        source_template_exercise_id: item.id, exercise_id: item.exercise_id, selected_side: item.selected_side,
-        target_sets: item.target_sets, target_reps_per_set: item.target_reps_per_set, sessions_per_day: item.sessions_per_day,
+        source_template_exercise_id: item.id, exercise_id: item.exercise_id, selected_side: test?.side ?? item.selected_side,
+        target_sets: test?.sets ?? item.target_sets, target_reps_per_set: test?.reps ?? item.target_reps_per_set, sessions_per_day: item.sessions_per_day,
         schedule_type: item.schedule_type, effective_from: effectiveFrom, version_number: template.version_number,
-        configured_by: configuredBy, instruction_override: item.instructions,
+        configured_by: configuredBy, instruction_override: test ? `โหมดทดสอบกล้อง · ขา${test.side === "left" ? "ซ้าย" : "ขวา"} ${test.sets} เซต × ${test.reps} ครั้ง · เริ่ม 75–105° เหยียด ≥120° แล้วกลับ · เกณฑ์ทดสอบซอฟต์แวร์เท่านั้น` : item.instructions,
         weekdays: { create: item.weekdays.map(day => ({ weekday: day.weekday })) },
       })) },
     }, include: planRelations });
@@ -134,7 +140,7 @@ function dailyDTO(item: Daily, today: string): DailyTrainingItem {
   const savedSets = item.sessions.reduce((sum, session) => sum + session._count.sets, 0);
   const status = savedSets >= item.target_sets ? "completed" : savedSets > 0 || item.started_at ? "in_progress" : "not_started";
   return { id: item.id, planId: item.planExercise.plan_id, exercise: exerciseDTO(item.exercise), side: item.selected_side, targetSets: item.target_sets, targetReps: item.target_reps_per_set, savedSets, status,
-    instructions: item.planExercise.instruction_override,
+    instructions: item.exercise.code === demoExerciseCode && cameraTestEnabled() ? `โหมดทดสอบกล้อง · ขา${item.selected_side === "right" ? "ขวา" : "ซ้าย"} ${item.target_sets} เซต × ${item.target_reps_per_set} ครั้ง · เริ่ม 75–105° เหยียด ≥120° แล้วกลับ · เกณฑ์ทดสอบซอฟต์แวร์เท่านั้น` : item.planExercise.instruction_override,
     canStart: item.day.local_date.toISOString().slice(0, 10) === today && !item.day.is_closed && savedSets < item.target_sets && item.exercise.is_active && item.exercise.module.is_active };
 }
 
@@ -142,7 +148,8 @@ export async function readDailyTraining(patientId: number, now = new Date()): Pr
   const today = trainingDay(now);
   const dayId = await ensureTrainingDay(patientId, now);
   const records = dayId ? await prisma.dailyExercise.findMany({ where: { rehabilitation_day_id: dayId, day: { patient_id: patientId } }, orderBy: { id: "asc" }, include: dailyRelations }) : [];
-  const items = records.map(item => dailyDTO(item, today.date));
+  const demo = demoEnabled() && await isDemoPatient(patientId);
+  const items = records.filter(item => item.exercise.code !== demoExerciseCode || cameraTestEnabled() || demo).map(item => dailyDTO(item, today.date));
   const totalSets = items.reduce((sum, item) => sum + item.targetSets, 0);
   const savedSets = items.reduce((sum, item) => sum + item.savedSets, 0);
   const activePlan = await readTrainingPlan(patientId);
@@ -153,6 +160,7 @@ export async function readDailyTraining(patientId: number, now = new Date()): Pr
 export async function readCameraAssignment(patientId: number, dailyId: number, code?: string, guide = false, now = new Date()) {
   const item = await prisma.dailyExercise.findFirst({ where: { id: dailyId, day: { patient_id: patientId }, ...(code ? { exercise: { code } } : {}) }, include: dailyRelations });
   if (!item) throw new AccountError("ไม่พบรายการฝึก", 404);
+  if (item.exercise.code === demoExerciseCode && !cameraTestEnabled() && (!demoEnabled() || !await isDemoPatient(patientId))) throw new AccountError("โหมดทดสอบกล้องปิดอยู่", 422);
   const today = trainingDay(now).date;
   const assignment = dailyDTO(item, today);
   if (item.day.local_date.toISOString().slice(0, 10) !== today || (!guide && !assignment.canStart)) throw new AccountError("รายการนี้ไม่สามารถเริ่มฝึกได้ กรุณากลับไปดูแผนวันนี้", 409);
@@ -160,9 +168,11 @@ export async function readCameraAssignment(patientId: number, dailyId: number, c
 }
 
 export async function readTrainingHistory(patientId: number, now = new Date()): Promise<TrainingHistory> {
+  const daily = await readDailyTraining(patientId, now);
+  const testDay = daily.items.length > 0 && daily.items.every(item => item.exercise.code === demoExerciseCode);
   const today = trainingDay(now).storedDate;
   const start = new Date(today.getTime() - 6 * 86400000);
-  const records = await prisma.exerciseSet.findMany({ where: { status: "saved", session: { dailyExercise: { day: { patient_id: patientId, local_date: { gte: start, lte: today } } } } }, orderBy: [{ saved_at: "desc" }, { id: "desc" }], select: {
+  const records = await prisma.exerciseSet.findMany({ where: { status: "saved", session: { dailyExercise: { exercise: { code: testDay ? demoExerciseCode : { not: demoExerciseCode } }, day: { patient_id: patientId, local_date: { gte: start, lte: today } } } } }, orderBy: [{ saved_at: "desc" }, { id: "desc" }], select: {
     id: true, target_reps: true, elapsed_seconds: true, _count: { select: { repetitions: true } },
     session: { select: { dailyExercise: { select: { exercise: { select: { name_th: true } }, day: { select: { local_date: true } } } } } },
   } });

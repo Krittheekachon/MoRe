@@ -6,6 +6,7 @@ import { prisma } from "./prisma";
 import { encryptNationalId, hashPassword, nationalIdLookup } from "./account-security";
 import { demoDoctorLoginName, demoExerciseCode } from "./demo-policy";
 import { mockDemoTemplateCode } from "./mock-plan";
+import { cameraKneeExtension, legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension } from "./pose/exercises/camera-knee-extension";
 
 type Credentials = { doctor: { loginName: string; password: string }; patients: { nationalId: string; password: string; hn: string; name: string }[] };
 export async function seedDemo() {
@@ -20,7 +21,11 @@ export async function seedDemo() {
     })) };
     await writeFile(file, JSON.stringify(accounts, null, 2), { flag: "wx", mode: 0o600 });
   }
-  if (accounts.doctor.loginName !== demoDoctorLoginName || accounts.patients.length !== 2) throw new Error("Invalid Demo credentials file");
+  if (accounts.patients.length === 2) {
+    accounts.patients.push({ nationalId: "0000000000003", password: randomBytes(18).toString("base64url"), hn: "MORE-DEMO-CAMERA", name: "CAMERA TEST patient" });
+    await writeFile(file, JSON.stringify(accounts, null, 2), { mode: 0o600 });
+  }
+  if (accounts.doctor.loginName !== demoDoctorLoginName || accounts.patients.length !== 3) throw new Error("Invalid Demo credentials file");
   stage = "password hashing";
   const hashes: string[] = [];
   for (const password of [accounts.doctor.password, ...accounts.patients.map(item => item.password)]) hashes.push(await hashPassword(password));
@@ -48,7 +53,8 @@ export async function seedDemo() {
         patients.push({ id: patient.patient_id, hn: account.hn, lookup });
       }
       stage = "exercise";
-      const exerciseModule = await tx.exerciseModule.findUniqueOrThrow({ where: { module_number: 2 } });
+      const reference = await tx.exercise.findUniqueOrThrow({ where: { code: "seated-leg-raise" }, include: { module: true } });
+      const exerciseModule = reference.module;
       let exercise = await tx.exercise.findUnique({ where: { code: demoExerciseCode } });
       if (exercise && previous?.exerciseId !== exercise.id) throw new Error("Reserved Demo exercise conflict");
       exercise ??= await tx.exercise.create({ data: { module_id: exerciseModule.id, code: demoExerciseCode, name_th: "DEMO นั่งเหยียดขา (ไม่ใช่แผนรักษา)", name_en: "DEMO seated knee extension", description: "ข้อมูลสังเคราะห์สำหรับทดลองระบบเท่านั้น ไม่ใช่เกณฑ์ทางคลินิก", tutorial_steps: "DEMO เท่านั้น: นั่งบนเก้าอี้มั่นคง จัดกล้องด้านข้างให้เห็นสะโพก เข่า และข้อเท้า ไม่ใช้เพื่อประเมินสุขภาพจริง หยุดทันทีหากไม่สบาย", camera_view: "side", supports_side_selection: true, default_sets: 2, default_reps_per_set: 3, sort_order: 99 } });
@@ -56,6 +62,10 @@ export async function seedDemo() {
         stage = "metrics";
         const metric = await tx.exerciseAngleMetric.upsert({ where: { exercise_id_metric_code_definition_version: { exercise_id: exercise.id, metric_code: `demo-${side}`, definition_version: 1 } }, update: {}, create: { exercise_id: exercise.id, metric_code: `demo-${side}`, label_th: `DEMO ${side} knee`, landmark_a: `${side.toUpperCase()}_HIP`, landmark_b: `${side.toUpperCase()}_KNEE`, landmark_c: `${side.toUpperCase()}_ANKLE`, is_primary: true } });
         for (const phase of ["start", "peak", "return"]) await tx.exerciseCheckpoint.upsert({ where: { exercise_id_code_criteria_version: { exercise_id: exercise.id, code: `demo-${side}-${phase}`, criteria_version: 1 } }, update: {}, create: { exercise_id: exercise.id, metric_id: metric.id, code: `demo-${side}-${phase}`, phase, min_value: phase === "peak" ? 140 : 75, max_value: phase === "peak" ? 180 : 105, feedback_code: "demo_only", instruction_th: "DEMO engineering fixture; not clinical" } });
+        for (const mockDefinition of [legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension, cameraKneeExtension]) for (const phase of ["start", "peak", "return"]) {
+          const range = phase === "peak" ? mockDefinition.correctPeak : phase === "return" ? mockDefinition.returned ?? mockDefinition.start : mockDefinition.start;
+          await tx.exerciseCheckpoint.upsert({ where: { exercise_id_code_criteria_version: { exercise_id: exercise.id, code: `demo-${side}-${phase}`, criteria_version: mockDefinition.criteriaVersion } }, update: {}, create: { exercise_id: exercise.id, metric_id: metric.id, code: `demo-${side}-${phase}`, criteria_version: mockDefinition.criteriaVersion, phase, min_value: range.min, max_value: range.max, feedback_code: "demo_only", instruction_th: "Camera mock only; not clinical" } });
+        }
       }
       for (const [index, side] of ["left", "right"].entries()) {
         stage = "templates";
@@ -76,7 +86,7 @@ export async function seedDemo() {
           instructions: "MOCK สำหรับทดสอบระบบเท่านั้น: นั่งเหยียดขา (seated knee extension) ขาซ้าย 1 เซต × 5 ครั้ง ใช้เกณฑ์มุม Demo เดิม ไม่ใช่แผนรักษาหรือเป้าหมายที่หมอยืนยัน" } },
       } });
       stage = "synthetic history";
-      for (const [index, patient] of patients.entries()) {
+      for (const [index, patient] of patients.slice(0, 2).entries()) {
         const code = `DEMO-HISTORY-${index + 1}`;
         if (await tx.rehabilitationPlan.findUnique({ where: { plan_code: code } })) continue;
         const local = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);

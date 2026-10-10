@@ -16,16 +16,20 @@ function groups(session: ResultSession) {
 }
 export function ResultsHistory({ sessions, base = "/patient", date: initialDate = "", exerciseCode = "", calendar = false, initialMonth = "" }: { sessions: ResultSession[]; base?: string; date?: string; exerciseCode?: string; calendar?: boolean; initialMonth?: string }) {
   const [date, setDate] = useState(initialDate);
-  const displayed = sessions.filter(session => (!date || session.date === date) && (!exerciseCode || session.code === exerciseCode));
-  const dates = [...new Set(sessions.map(session => session.date))].sort().reverse();
+  const isTest = (session: ResultSession) => session.isMock || session.code.startsWith("demo-");
+  const [testResults, setTestResults] = useState(exerciseCode.startsWith("demo-") || (sessions.length > 0 && sessions.every(isTest)));
+  const scoped = sessions.filter(session => isTest(session) === testResults);
+  const displayed = scoped.filter(session => (!date || session.date === date) && (!exerciseCode || session.code === exerciseCode));
+  const dates = [...new Set(scoped.map(session => session.date))].sort().reverse();
   const [month, setMonth] = useState(initialMonth || dates[0]?.slice(0, 7) || "2000-01");
   const beginning = new Date(`${month}-01T00:00:00Z`);
   const offset = (beginning.getUTCDay() + 6) % 7;
   const days = new Date(beginning.getUTCFullYear(), beginning.getUTCMonth() + 1, 0).getDate();
   return <><PageHeading title="ประวัติและความก้าวหน้า" back={base === "/patient" ? "/patient" : base} />
+    <label>ประเภทผล<select value={testResults ? "test" : "clinical"} onChange={event => setTestResults(event.target.value === "test")}><option value="clinical">ผลฝึกจริง</option><option value="test">ผลทดสอบระบบกล้อง</option></select></label>{testResults && <p className="notice">โหมดทดสอบกล้อง · แสดงผลทดสอบแยกจากผลฝึกจริง</p>}
     <div className="filter-bar"><label>วันที่ฝึก<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label><button className="command" onClick={() => setDate("")}>ทุกวันที่บันทึก</button>{base === "/patient" && <Link className="command" href={calendar ? "/patient/progress" : "/patient/progress/calendar"}>{calendar ? "รายการผล" : "ปฏิทิน"}</Link>}</div>
     {calendar && <><label>เดือน<input type="month" value={month} required onChange={event => { if (event.target.value) setMonth(event.target.value); }} /></label><div className="calendar-grid results-calendar">{["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"].map(day => <strong key={day}>{day}</strong>)}{Array.from({ length: offset }, (_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: days }, (_, index) => {
-      const day = `${month}-${String(index + 1).padStart(2, "0")}`; const count = sessions.filter(session => session.date === day).reduce((sum, session) => sum + session.sets.length, 0);
+      const day = `${month}-${String(index + 1).padStart(2, "0")}`; const count = scoped.filter(session => session.date === day).reduce((sum, session) => sum + session.sets.length, 0);
       return <Link key={day} href={`/patient/progress/calendar/${day}`} aria-label={`${day} ${count} เซต`}><b>{index + 1}</b><small>{count ? `${count} เซต` : "-"}</small></Link>;
     })}</div></>}
     <p className="muted">แสดงเฉพาะเซตที่บันทึกแล้ว · วันตาม Asia/Bangkok · สูงสุด 200 รอบการฝึกล่าสุด</p>

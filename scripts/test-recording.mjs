@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { createJiti } from "jiti";
 import dotenv from "dotenv";
 dotenv.config({ quiet: true });
+const origin = process.env.MORE_TEST_ORIGIN || "http://localhost:3000";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const jiti = createJiti(import.meta.url, { alias: { "@": path.join(root, "src"), "server-only": path.join(root, "node_modules/next/dist/compiled/server-only/empty.js") } });
 const { prisma } = await jiti.import(path.join(root, "src/lib/prisma.ts"));
@@ -57,6 +58,14 @@ async function main() {
     const day = await prisma.rehabilitationDay.create({ data: { patient_id: user.id, local_date: trainingDay(now).storedDate, dailyExercises: { create: plan.exercises.map(item => ({ plan_exercise_id: item.id, exercise_id: item.exercise_id, selected_side: "left", target_sets: 2, target_reps_per_set: 10 })) } }, include: { dailyExercises: true } });
     dailyIds.push(day.dailyExercises.find(item => item.exercise_id === fixtureExercise.id).id);
     if (suffix === "A") accounts[0].cameraDaily = day.dailyExercises.find(item => item.exercise_id === catalog.id).id;
+    if (suffix === "A" && process.env.MORE_CAMERA_HYDRATION === "1") {
+      const mock = await prisma.exercise.findUniqueOrThrow({ where: { code: "demo-knee-extension" } });
+      for (const [index, side] of ["right", null].entries()) {
+        const item = await prisma.planExercise.create({ data: { plan_id: plan.id, exercise_id: mock.id, selected_side: side, target_sets: 2, target_reps_per_set: 5, effective_from: beginning, version_number: index + 1, configured_by: user.id } });
+        const daily = await prisma.dailyExercise.create({ data: { rehabilitation_day_id: day.id, plan_exercise_id: item.id, exercise_id: mock.id, selected_side: side, target_sets: 2, target_reps_per_set: 5 } });
+        accounts[0][index ? "cameraFreeDaily" : "cameraAssignedDaily"] = daily.id;
+      }
+    }
   }
   const [a, b] = patients; const [dailyA, dailyB] = dailyIds;
   const slots = await Promise.all(Array.from({ length: 5 }, () => service.start(a, dailyA, { side: "left" }, beginning)));
@@ -94,11 +103,11 @@ async function main() {
   const bSlot = await service.start(b, dailyB, { side: "left" }, beginning);
   await service.state(b, bSlot.setId, { action: "exit", elapsedSeconds: 0 }, now);
   check((await prisma.exerciseSet.findUnique({ where: { id: bSlot.setId } })).status === "cancelled", "exit discards unsaved draft");
-  const login = await fetch("http://localhost:3000/api/auth/login", { method: "POST", headers: { Origin: "http://localhost:3000", "Content-Type": "application/json" }, body: JSON.stringify({ nationalId: accounts[0].nationalId, password: accounts[0].password }) });
+  const login = await fetch(`${origin}/api/auth/login`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ nationalId: accounts[0].nationalId, password: accounts[0].password }) });
   check(login.ok, "fixture login", "api");
   accounts[0].cookie = login.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
-  async function api(url, body, authenticated = true, origin = "http://localhost:3000") {
-    return fetch(`http://localhost:3000${url}`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", ...(authenticated ? { Cookie: accounts[0].cookie } : {}) }, body: JSON.stringify(body) });
+  async function api(url, body, authenticated = true, requestOrigin = origin) {
+    return fetch(`${origin}${url}`, { method: "POST", headers: { Origin: requestOrigin, "Content-Type": "application/json", ...(authenticated ? { Cookie: accounts[0].cookie } : {}) }, body: JSON.stringify(body) });
   }
   check((await api(`/api/patient/training/sets/${bSlot.setId}`, payload)).status === 404, "HTTP cannot save another owner", "api");
   check((await api(`/api/patient/training/sets/${slot.setId}`, payload, false)).status === 401, "HTTP requires session", "api");
@@ -106,9 +115,11 @@ async function main() {
   check((await api(`/api/patient/training/daily/${accounts[0].cameraDaily}/recording`, { side: "left" })).status === 422, "HTTP cannot use unapproved knee criteria", "api");
   delete accounts[0].cookie;
   fs.mkdirSync(path.dirname(generated), { recursive: true });
-  fs.writeFileSync(generated, fs.readFileSync(path.join(root, "scripts/test-recording-browser.js"), "utf8").replace("null /*RECORDING_FIXTURE*/", JSON.stringify(accounts[0])));
+  fs.writeFileSync(generated, fs.readFileSync(path.join(root, process.env.MORE_CAMERA_HYDRATION === "1" ? "scripts/test-camera-hydration-browser.js" : "scripts/test-recording-browser.js"), "utf8").replace("null /*RECORDING_FIXTURE*/", JSON.stringify(accounts[0])).replace("false /*HYDRATION_BASELINE*/", String(process.env.MORE_HYDRATION_BASELINE === "1")));
   const output = execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "npx.cmd --yes --package @playwright/cli playwright-cli -s=more-recording run-code --filename output/playwright/recording-code.js"], { cwd: root, encoding: "utf8", timeout: 240000, maxBuffer: 1024 * 1024 });
-  const result = output.match(/### Result\r?\n([^\r\n]+)/); check(!!result, "browser returned sanitized results");
+  const result = output.match(/### Result\r?\n([^\r\n]+)/);
+  if (!result) console.error(output.match(/(?:Error|TimeoutError):[^\r\n]*/)?.[0] || "Browser returned no result");
+  check(!!result, "browser returned sanitized results");
   console.log(JSON.stringify({ logicChecks, serviceChecks, apiChecks, browser: JSON.parse(result[1]), realHumanCameraTested: false }));
 }
 async function cleanup() {
@@ -129,7 +140,7 @@ async function cleanup() {
     await prisma.exercise.deleteMany({ where: { id: fixtureExercise.id, code: fixtureExercise.code } });
   }
 }
-main().catch(error => { console.error("Recording verification failed:", error.testLabel || error.code || "TEST_ERROR"); process.exitCode = 1; }).finally(async () => {
+main().catch(error => { console.error("Recording verification failed:", error.testLabel || error.code || "TEST_ERROR"); if (error.stdout) console.error(String(error.stdout).match(/(?:Error|TimeoutError):[^\r\n]*/)?.[0] || "Browser command failed"); process.exitCode = 1; }).finally(async () => {
   try { await cleanup(); console.log("Temporary recording fixtures removed; original catalog/data preserved."); } catch { console.error("Fixture cleanup failed; inspect only MoRe Recording Test records."); process.exitCode = 1; }
   if (fs.existsSync(generated)) fs.rmSync(generated); await prisma.$disconnect();
 });

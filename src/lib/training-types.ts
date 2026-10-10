@@ -1,5 +1,5 @@
 export type TrainingExercise = {
-  id: number; code: string; name: string; english: string; module: number;
+  id: number; code: string; name: string; english: string; module: number; moduleName?: string;
   view: string | null; supportsSide: boolean; tutorial: string | null;
 };
 export type TrainingItem = {

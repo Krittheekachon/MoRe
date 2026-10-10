@@ -24,8 +24,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const preferences = await cookies();
   const initialSize = parseFontSize(preferences.get(fontSizeCookie)?.value);
   const initialTheme = parseTheme(preferences.get(themeCookie)?.value);
+  // Chrome iOS Autofill adds __gCrRemoteFrameToken to <html> before hydration.
+  // Suppression covers this element's attributes only (not descendants). Cookie-
+  // derived theme/size and other app attributes must still match SSR; see the
+  // server/pre-hydration DOM comparison in test-plan-hydration-browser.js.
   return (
-    <html lang="th" data-size={initialSize} data-theme={initialTheme} className="h-full antialiased">
+    <html lang="th" data-size={initialSize} data-theme={initialTheme} className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col"><DisplaySettingsProvider initialSize={initialSize} initialTheme={initialTheme}><DemoProvider>{children}</DemoProvider></DisplaySettingsProvider></body>
     </html>
   );

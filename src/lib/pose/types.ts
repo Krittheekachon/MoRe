@@ -1,16 +1,31 @@
 export type Range = { min: number; max: number };
 export type Side = "left" | "right";
+export type PreparationCriteria = {
+  side: Side; shoulder: number; heel: number; foot: number; oppositeHip: number; oppositeKnee: number;
+  facingSign: number; torsoThigh: Range; maxThighTilt: number; maxTorsoTilt: number;
+  minDirection: number; minDepthDelta: number; maxSideWidth: number; maxHipDrift: number;
+  stableMs: number; guidanceStableMs: number;
+  postureGuidanceOnly?: boolean; lockOrientation?: boolean; graceMs?: number; edgeTolerance?: number;
+  singleSideOrientation?: boolean;
+  maintainTorsoRange?: boolean;
+    seatedMaxThighTilt?: number;
+};
 export type PoseCriteria = {
   exerciseCode: string;
+  engine?: "angle-return";
   metricId: number;
   definitionVersion: number;
   criteriaVersion: number;
   landmarks: [number, number, number];
   coordinates: "image-2d" | "world-3d";
   start: Range;
+  returned?: Range;
+  preparation?: PreparationCriteria;
   departureMin: number;
   correctPeak: Range;
   stableMs: number;
+  stabilityGraceMs?: number;
+  stabilityEdgeTolerance?: number;
   maxGapMs: number;
   minVisibility: number;
   checkpointIds: { start: number; peak: number; returned: number };

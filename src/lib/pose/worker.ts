@@ -1,4 +1,5 @@
 import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { poseTrackingConfig } from "./tracking-config";
 
 let task: PoseLandmarker | null = null;
 let closed = false;
@@ -9,8 +10,11 @@ self.onmessage = async (event: MessageEvent) => {
     try {
       const files = await FilesetResolver.forVisionTasks(`${message.origin}/mediapipe/wasm`);
       const created = await PoseLandmarker.createFromOptions(files, {
-        baseOptions: { modelAssetPath: `${message.origin}/mediapipe/pose_landmarker_lite.task`, delegate: "CPU" },
+        baseOptions: { modelAssetPath: `${message.origin}/mediapipe/pose_landmarker_full.task`, delegate: "CPU" },
         runningMode: "VIDEO", numPoses: 1, outputSegmentationMasks: false,
+        minPoseDetectionConfidence: poseTrackingConfig.minPoseDetectionConfidence,
+        minPosePresenceConfidence: poseTrackingConfig.minPosePresenceConfidence,
+        minTrackingConfidence: poseTrackingConfig.minTrackingConfidence,
         canvas: new OffscreenCanvas(1, 1),
       });
       if (closed) { created.close(); return; }

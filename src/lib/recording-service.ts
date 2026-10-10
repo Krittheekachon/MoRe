@@ -5,11 +5,12 @@ import { AccountError, object, onlyFields } from "./account-validation";
 import { trainingDay } from "./training-calendar";
 import { approvedPoseCriteria } from "./pose/approved-criteria";
 import { demoCriteria } from "./demo-policy";
+import { poseEngine } from "./pose/engines/registry";
+import { poseLandmarkNames } from "./pose/landmarks";
 import type { CompletedRep, PoseCriteria, SavedSet, Side } from "./pose/types";
 
 type Provider = (code: string, side: Side) => PoseCriteria | undefined;
 const defaultProvider: Provider = (code, side) => approvedPoseCriteria[code]?.[side];
-const landmarkNames: Record<number, string> = { 23: "LEFT_HIP", 24: "RIGHT_HIP", 25: "LEFT_KNEE", 26: "RIGHT_KNEE", 27: "LEFT_ANKLE", 28: "RIGHT_ANKLE" };
 const unavailable = () => new AccountError("ยังไม่มีนิยามมุมและเกณฑ์ที่ยืนยันสำหรับท่านี้ กรุณาติดต่อทีมรักษา", 422);
 function number(value: unknown, min: number, max: number, integer = false): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) throw new AccountError("ข้อมูลผลฝึกไม่ถูกต้อง");
@@ -43,14 +44,14 @@ async function criteriaFor(tx: Prisma.TransactionClient, daily: Daily, side: Sid
   const criteria = provider(daily.exercise.code, side) || (provider === defaultProvider ? await demoCriteria(daily.day.patient_id, daily.exercise_id, side) : undefined);
   if (!criteria || criteria.exerciseCode !== daily.exercise.code || !daily.exercise.supports_side_selection) throw unavailable();
   const metric = await tx.exerciseAngleMetric.findFirst({ where: { id: criteria.metricId, exercise_id: daily.exercise_id, is_primary: true, definition_version: criteria.definitionVersion } });
-  if (!metric || metric.reference_axis !== null || [metric.landmark_a, metric.landmark_b, metric.landmark_c].some((name, i) => name !== landmarkNames[criteria.landmarks[i]])) throw unavailable();
+  if (!metric || metric.reference_axis !== null || criteria.landmarks.some(index => !Number.isInteger(index) || index < 0 || index >= poseLandmarkNames.length) || [metric.landmark_a, metric.landmark_b, metric.landmark_c].some((name, i) => name !== poseLandmarkNames[criteria.landmarks[i]])) throw unavailable();
   const checks = await tx.exerciseCheckpoint.findMany({ where: { id: { in: Object.values(criteria.checkpointIds) }, exercise_id: daily.exercise_id, metric_id: metric.id, criteria_version: criteria.criteriaVersion } });
   for (const [phase, id] of Object.entries(criteria.checkpointIds)) {
     const checkpoint = checks.find(check => check.id === id);
-    const range = phase === "peak" ? criteria.correctPeak : criteria.start;
+    const range = phase === "peak" ? criteria.correctPeak : phase === "returned" ? criteria.returned ?? criteria.start : criteria.start;
     if (!checkpoint || checkpoint.phase !== (phase === "returned" ? "return" : phase) || Number(checkpoint.min_value) !== range.min || Number(checkpoint.max_value) !== range.max || checkpoint.min_value === null || checkpoint.max_value === null) throw unavailable();
   }
-  if (new Set(Object.values(criteria.checkpointIds)).size !== 3 || criteria.departureMin <= criteria.start.max || criteria.start.min < 0 || criteria.start.max >= 180 || criteria.correctPeak.min < criteria.departureMin || criteria.correctPeak.max > 180 || criteria.stableMs <= 0 || criteria.maxGapMs <= criteria.stableMs || criteria.minVisibility <= 0 || criteria.minVisibility > 1) throw unavailable();
+  if (new Set(Object.values(criteria.checkpointIds)).size !== 3 || !poseEngine(criteria).validCriteria(criteria)) throw unavailable();
   return criteria;
 }
 
@@ -127,10 +128,10 @@ export function createRecordingService(provider: Provider = defaultProvider) {
       if (!set.started_at) throw new AccountError("เซตนี้ไม่มีเวลาเริ่ม กรุณาติดต่อทีมรักษา", 422);
       let previous = set.started_at.getTime(); let duration = 0;
       for (const rep of reps) {
-        if (Object.keys(rep).length !== 6 || rep.startedAt < previous || rep.completedAt <= rep.startedAt || rep.completedAt - rep.startedAt > 2147483647 || rep.peakAngle < criteria.departureMin || rep.peakAngle < rep.startAngle || rep.peakAngle < rep.endAngle || rep.startAngle < criteria.start.min || rep.startAngle > criteria.start.max || rep.endAngle < criteria.start.min || rep.endAngle > criteria.start.max || rep.confidence < criteria.minVisibility) throw new AccountError("รอบฝึกยังไม่ครบหรือข้อมูลผลฝึกไม่ถูกต้อง");
+        if (Object.keys(rep).length !== 6 || rep.startedAt < previous || rep.completedAt <= rep.startedAt || rep.completedAt - rep.startedAt > 2147483647 || !poseEngine(criteria).complete(rep, criteria)) throw new AccountError("รอบฝึกยังไม่ครบหรือข้อมูลผลฝึกไม่ถูกต้อง");
         previous = rep.completedAt; duration += rep.completedAt - rep.startedAt;
       }
-      if (duration > (elapsed + 1) * 1000 || elapsed * 1000 > now.getTime() - set.started_at!.getTime() + 1000 || reps.length > set.target_reps) throw new AccountError("จำนวนครั้งหรือเวลาฝึกไม่ถูกต้อง");
+      if (duration > (elapsed + 1) * 1000 || elapsed * 1000 > now.getTime() - set.started_at!.getTime() + 1000) throw new AccountError("จำนวนครั้งหรือเวลาฝึกไม่ถูกต้อง");
       if (set.status === "saved") {
         const same = elapsed === set.elapsed_seconds && reps.length === set.repetitions.length && reps.every((rep, index) => {
           const old = set.repetitions[index]; const metric = old.metrics.find(item => item.metric_id === criteria.metricId);
@@ -142,7 +143,7 @@ export function createRecordingService(provider: Provider = defaultProvider) {
         await eligible(tx, daily, now);
         for (const [index, rep] of reps.entries()) {
           const peak = Number(rep.peakAngle.toFixed(2));
-          const correct = peak >= criteria.correctPeak.min && peak <= criteria.correctPeak.max;
+          const correct = poseEngine(criteria).correct({ ...rep, peakAngle: peak }, criteria);
           await tx.repetition.create({ data: {
             set_id: setId, rep_number: index + 1, started_at: new Date(rep.startedAt), completed_at: new Date(rep.completedAt), selected_side: side, is_correct: correct, criteria_version: criteria.criteriaVersion, confidence: Number(rep.confidence.toFixed(3)),
             metrics: { create: { metric_id: criteria.metricId, start_angle_deg: Number(rep.startAngle.toFixed(2)), peak_angle_deg: peak, end_angle_deg: Number(rep.endAngle.toFixed(2)), duration_ms: rep.completedAt - rep.startedAt, selected_side: side } },

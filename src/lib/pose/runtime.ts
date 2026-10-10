@@ -5,12 +5,14 @@ export type PoseRuntime = { dispose: () => void };
 
 export function openPoseRuntime(video: HTMLVideoElement, onFrame: (frame: PoseFrame) => void, onStatus: (status: "loading" | "ready" | "error") => void): PoseRuntime {
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
-  let disposed = false; let busy = false; let ready = false; let raf = 0; let lastVideoTime = -1; let lastSent = -Infinity;
+  let disposed = false; let busy = false; let ready = false; let raf = 0; let lastVideoTime = -1; let lastSent = -Infinity; let lastReceived = -Infinity;
+  const watchdog = setTimeout(fail, 30000);
+  let inferenceTimer: ReturnType<typeof setTimeout> | undefined;
   onStatus("loading");
   function fail() { if (!disposed) { onStatus("error"); dispose(); } }
   function dispose() {
     if (disposed) return;
-    disposed = true; cancelAnimationFrame(raf);
+    disposed = true; clearTimeout(watchdog); clearTimeout(inferenceTimer); cancelAnimationFrame(raf);
     worker.postMessage({ type: "close" });
     // Termination is also required if initialization/native inference never replies.
     const timer = setTimeout(() => worker.terminate(), 500);
@@ -24,13 +26,18 @@ export function openPoseRuntime(video: HTMLVideoElement, onFrame: (frame: PoseFr
     try {
       const bitmap = await createImageBitmap(video);
       if (disposed) { bitmap.close(); return; }
+      inferenceTimer = setTimeout(fail, 15000);
       worker.postMessage({ type: "frame", bitmap, timestamp, at: Date.now() }, [bitmap]);
     } catch { busy = false; fail(); }
   }
   worker.onmessage = event => {
     if (disposed) return;
-    if (event.data.type === "ready") { ready = true; onStatus("ready"); }
-    else if (event.data.type === "pose") { busy = false; onFrame(event.data); }
+    if (event.data.type === "ready") { clearTimeout(watchdog); ready = true; onStatus("ready"); }
+    else if (event.data.type === "pose") {
+      clearTimeout(inferenceTimer); busy = false;
+      if (!Number.isFinite(event.data.timestamp) || event.data.timestamp <= lastReceived) return;
+      lastReceived = event.data.timestamp; onFrame(event.data);
+    }
     else if (event.data.type === "error") fail();
   };
   worker.onerror = fail;
