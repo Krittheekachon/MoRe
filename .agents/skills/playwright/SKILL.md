@@ -230,3 +230,14 @@ Open only what you need:
 ### Mock readiness regression: matched displayed angles do not imply permission
 
 For the MoRe mock, trace assignment exercise code through demoCriteria, DB metric/checkpoints and recording-service validation to the actual bound criteria before changing thresholds. Debug must identify exercise/definition/criteria versions, raw versus filtered values, inclusive checks, every readiness blocker, stable time and camera/start state. Test 90-degree knee/105-degree torso on both sides, exact bounds, opposite occlusion and source-image reflection. Anatomical side does not fix image-facing direction; optional heel/toe or ambiguous depth must not veto a reliable selected measurement chain. Posture tilt guidance must not silently become an extra readiness gate. Latest confirmed code issues were a 35-degree thigh hard gate and signed/auxiliary-foot direction veto; DB v4/v5 ranges matched their definitions. This does not prove the original iPad's loaded version or model accuracy. Do not claim seated-chair detection from two angles. Keep real-exercise definitions separate, and check direct URL/reloads/console after camera UI changes. See docs/mock-readiness-v4.md for evidence and device limits.
+## MoRe: ตรวจ conflict ก่อน Commit / Merge
+
+เมื่อผู้ใช้สั่ง commit, push หรือ merge งาน MoRe ให้ตรวจ branch ปัจจุบัน, working tree, staged diff และไฟล์ unresolved (`git ls-files -u`) ก่อนดำเนินการ ห้าม commit conflict markers หรือไฟล์ที่ยังแก้ conflict ไม่ครบ ตรวจว่าไม่มี environment secrets หรือข้อมูลบัญชีส่วนตัวติดไปด้วย
+
+เมื่อทราบกิ่งปลายทาง ให้ fetch remote ล่าสุดและตรวจ merge ก่อน เช่น `git merge-tree --write-tree origin/main HEAD` ซึ่งไม่เปลี่ยน working tree หากยังมีงานที่ไม่ commit ให้ตรวจฐานปัจจุบันก่อน แล้วตรวจซ้ำกับ commit สุดท้ายที่จะ merge จริง อย่าอ้างว่าการตรวจ HEAD ครอบคลุม diff ที่ยังไม่ commit
+
+ถ้าพบ conflict ให้รายงานชื่อไฟล์ ประเภทการชน และส่วนที่ต้องตัดสินใจก่อน merge/push ผลที่ยัง unresolved; ห้ามเลือกทับงานของอีกฝ่ายแบบเหมารวม แก้ conflict ที่อยู่ในขอบเขตที่ได้รับอนุญาต ตรวจ checks ที่เกี่ยวข้อง แล้วตรวจซ้ำก่อนทำขั้นตอนต่อไป
+
+หากไม่มี conflict ให้ดำเนินการตามคำสั่งที่ได้รับอนุญาตโดยไม่ถามย้ำ; คำสั่ง commit อย่างเดียวไม่อนุญาต merge เข้า main ใช้ fast-forward เมื่อทำได้ ห้าม force push เพื่อหลีกเลี่ยง conflict หาก push ถูกปฏิเสธเพราะ remote เปลี่ยน ให้ fetch และตรวจ merge ใหม่
+
+หลังดำเนินการ รายงาน source/target branch, commit, ผล conflict ที่ตรวจจริง และสถานะ push แยก “จำลอง merge” ออกจาก “merge แล้ว” และแยก conflict ทาง Git ออกจากความเข้ากันได้ของ runtime/tests เก็บ skill ฉบับ repository นี้โดยตรงตามขั้นตอนเดิม ไม่สร้างสำเนา global ใหม่
