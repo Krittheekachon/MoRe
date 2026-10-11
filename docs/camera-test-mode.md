@@ -140,3 +140,5 @@ Flow browser script ใช้บัญชี CAMERA และบันทึก�
 - Current model: `public/mediapipe/pose_landmarker_full.task`, Full float16 v1, CPU. `node scripts/setup-pose-assets.mjs` downloads the official pinned artifact and checks SHA256; fresh installs and runtime use Full. Filter/angle/counter settings are unchanged. After switching, close and reopen the camera (or reload) to replace the previous worker. Physical iPad speed/accuracy remains to test.
 
 - Current mock preparation/counting thresholds and opt-in **Debug ท่าทดสอบ**: [mock-readiness-v4.md](mock-readiness-v4.md). Run the additive seed to provision v4; historic criteria/results remain unchanged.
+
+Developer mode (2026-10-11): technical Debug, criteria and measurement overlays now belong only to the server-authorized /developer route. Earlier patient Debug instructions are superseded. The patient mock exercise and normal recording remain available. See [developer-camera-mode.md](developer-camera-mode.md) for dev/password login, memory-only testing and verified limitations.

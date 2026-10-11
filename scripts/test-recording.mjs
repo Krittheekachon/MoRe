@@ -106,6 +106,8 @@ async function main() {
   const login = await fetch(`${origin}/api/auth/login`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ nationalId: accounts[0].nationalId, password: accounts[0].password }) });
   check(login.ok, "fixture login", "api");
   accounts[0].cookie = login.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
+  check((await fetch(`${origin}/api/developer/criteria?side=left`, { headers: { Cookie: accounts[0].cookie } })).status === 403, "patient cannot access developer criteria", "api");
+  check((await fetch(`${origin}/developer`, { headers: { Cookie: accounts[0].cookie } })).status === 404, "patient cannot access developer page", "api");
   async function api(url, body, authenticated = true, requestOrigin = origin) {
     return fetch(`${origin}${url}`, { method: "POST", headers: { Origin: requestOrigin, "Content-Type": "application/json", ...(authenticated ? { Cookie: accounts[0].cookie } : {}) }, body: JSON.stringify(body) });
   }
@@ -114,6 +116,7 @@ async function main() {
   check((await api(`/api/patient/training/sets/${slot.setId}`, payload, true, "http://evil.invalid")).status === 403, "HTTP rejects cross origin", "api");
   check((await api(`/api/patient/training/daily/${accounts[0].cameraDaily}/recording`, { side: "left" })).status === 422, "HTTP cannot use unapproved knee criteria", "api");
   delete accounts[0].cookie;
+  accounts[0].origin = origin;
   fs.mkdirSync(path.dirname(generated), { recursive: true });
   fs.writeFileSync(generated, fs.readFileSync(path.join(root, process.env.MORE_CAMERA_HYDRATION === "1" ? "scripts/test-camera-hydration-browser.js" : "scripts/test-recording-browser.js"), "utf8").replace("null /*RECORDING_FIXTURE*/", JSON.stringify(accounts[0])).replace("false /*HYDRATION_BASELINE*/", String(process.env.MORE_HYDRATION_BASELINE === "1")));
   const output = execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "npx.cmd --yes --package @playwright/cli playwright-cli -s=more-recording run-code --filename output/playwright/recording-code.js"], { cwd: root, encoding: "utf8", timeout: 240000, maxBuffer: 1024 * 1024 });

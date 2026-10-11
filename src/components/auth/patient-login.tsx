@@ -14,6 +14,7 @@ type Notice = { title: string; message: string; success?: boolean };
 
 function validate(field: Field, value: string): string | undefined {
   if (field === "nationalId") {
+    if (process.env.NODE_ENV === "development" && value === "dev") return;
     if (!value.trim()) return "กรุณากรอกรหัสบัตรประชาชน";
     if (!/^[0-9]{13}$/.test(value.replace(/[\s-]/g, ""))) {
       return "กรุณากรอกเลขบัตรประชาชนเป็นตัวเลข 13 หลัก";
@@ -101,7 +102,7 @@ export function PatientLogin() {
             name="national-id"
             label="รหัสบัตรประชาชน"
             placeholder="กรอกรหัสบัตรประชาชน"
-            inputMode="numeric"
+            inputMode={process.env.NODE_ENV === "development" ? "text" : "numeric"}
             autoComplete="username"
             suppressHydrationWarning
             spellCheck={false}

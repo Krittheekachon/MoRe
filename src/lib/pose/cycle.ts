@@ -37,6 +37,7 @@ export class RepetitionCycle {
   get movement(): MovementSnapshot {
     return { phase: this.phase === "unarmed" ? "preparing" : this.phase === "away" || this.candidate ? "moving" : "ready", completedReps: this.repetitions.length };
   }
+  get currentPeak(): number | null { return this.candidate?.peakAngle ?? null; }
   get debug() { return { state: this.phase === "unarmed" ? "รอจุดเริ่มต้น" : this.phase === "away" ? "รอกลับ" : "รอเหยียดออก", stableMs: this.stability.elapsed, requiredMs: this.criteria.stableMs, reason: this.reason }; }
   private clearStability() { this.stableSince = null; this.stability.reset(); }
   private stable(at: number) { if (this.criteria.stabilityGraceMs) return this.stability.pass(at, this.criteria.stabilityGraceMs) >= this.criteria.stableMs; this.stableSince ??= at; return at - this.stableSince >= this.criteria.stableMs; }

@@ -17,7 +17,7 @@ Table users {
 
 Table patient_profiles {
   patient_id int [pk, ref: > users.id]
-  hn varchar(40) [unique, note: 'ผู้ป่วยกรอกจากบัตรโรงพยาบาล; ตรวจสอบและล็อกไม่ให้ผู้ป่วยแก้เองหลังลงทะเบียน; สมมติใช้โรงพยาบาลเดียว']
+  hn varchar(40) [unique, note: 'ระบบออก HN อัตโนมัติตอนสมัคร เริ่ม 00001 และเพิ่มตาม HN ตัวเลขสูงสุด ภายใน transaction ที่ล็อกการออกเลข; ไม่ให้ผู้ป่วยแก้เอง; คง HN บัญชีเดิม; สมมติใช้โรงพยาบาลเดียว']
   national_id_lookup varchar(64) [not null, unique, note: 'ค่า HMAC-SHA256 ของเลขบัตรประชาชน ใช้ค้นหาแบบตรงตัว; เก็บกุญแจแยกจากฐานข้อมูล']
   national_id_encrypted text [not null, note: 'เลขบัตรประชาชนที่เข้ารหัส; เก็บกุญแจถอดรหัสแยกจากฐานข้อมูล']
   full_name varchar(200) [not null]

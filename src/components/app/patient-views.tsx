@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { accountRequest } from "@/lib/account-client";
 import { dateInThailand } from "@/lib/birth-date";
-import { ArrowRight, CalendarDays, Save, Video, UserRound, KeyRound } from "lucide-react";
+import { ArrowRight, ChevronRight, CalendarDays, Save, Video, UserRound, KeyRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { exercises, demoDate, dateLabel, ageOn, sexLabel, strokeLabel, type PatientProfile, type ExerciseId } from "@/lib/demo-data";
 import { useDemo } from "./demo-provider";
 import { PageHeading, EmptyState } from "./shell";
-import { DisplaySettings } from "./display-settings";
+import { DisplayMenu, DisplaySettings } from "./display-settings";
 
 export function ExerciseCards({ all = false, compact = false }: { all?: boolean; compact?: boolean }) {
   const { dailyPlans, sets } = useDemo();
@@ -51,7 +51,7 @@ export function PatientHome({ patient }: { patient?: PatientProfile }) {
     return { date, day: day.getUTCDate(), label: ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."][day.getUTCDay()], count: sets.filter(s => s.patient_id === "1" && s.local_date === date).length };
   });
   return <>
-    <PageHeading title="หน้าหลัก" subtitle={dateLabel(demoDate)} />
+    <PageHeading title="หน้าหลัก" subtitle={dateLabel(demoDate)}><DisplaySettings /></PageHeading>
     <PatientBanner accountProfile={patient} />
     <p className="notice">แผนฝึกและผลฝึกด้านล่างเป็นข้อมูลตัวอย่าง ยังไม่ได้เชื่อมฐานข้อมูล</p>
     {JSON.stringify(plans["1"]) !== JSON.stringify(plan) && <p className="notice">ปรับแผนใหม่แล้ว รายการฝึกประจำวันที่ {dateLabel(demoDate)} ยังใช้เป้าหมายเดิม</p>}
@@ -78,7 +78,7 @@ export function PatientHome({ patient }: { patient?: PatientProfile }) {
     </>}
   </>;
 }
-export function PatientExercises() { return <><PageHeading title="แผนการฝึก" subtitle={dateLabel(demoDate)}><Link className="command" href="/patient/plan">จัดการแผน</Link></PageHeading><PatientBanner /><div className="section-heading"><h2>เป้าหมายวันนี้</h2></div><ExerciseCards all /></>; }
+export function PatientExercises() { return <><PageHeading title="แผนการฝึก" subtitle={dateLabel(demoDate)}><div className="exercise-heading-actions"><Link className="command" href="/patient/plan">จัดการแผน</Link><DisplayMenu navigation /></div></PageHeading><PatientBanner /><div className="section-heading"><h2>เป้าหมายวันนี้</h2></div><ExerciseCards all /></>; }
 
 export function ExerciseGuide({ id }: { id: ExerciseId }) {
   const exercise = exercises.find(e => e.id === id)!;
@@ -112,7 +112,13 @@ export function ProgressCalendar() {
   return <><PageHeading title="ปฏิทินการฝึก" back="/patient/progress" /><div className="filter-bar"><label>เดือน<input type="month" value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }} /></label></div><div className="calendar-grid">{["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."].map(d => <span key={d}>{d}</span>)}{Array.from({ length: first.getUTCDay() }, (_, i) => <span key={`blank-${i}`} />)}{Array.from({ length: days }, (_, i) => { const date = `${month}-${String(i + 1).padStart(2, "0")}`; const count = sets.filter(s => s.patient_id === "1" && s.local_date === date).length; return <Link key={date} className={count ? "has-results" : ""} href={`/patient/progress/calendar/${date}`} aria-label={`${dateLabel(date)} ${count} เซต`}>{i + 1}<small>{count ? `${count} เซต` : ""}</small></Link>; })}</div></>;
 }
 export function ProfileView({ profile }: { profile: PatientProfile }) {
-  return <><PageHeading title="ข้อมูลของคุณ"><Link className="command" href="/patient/profile/edit"><UserRound size={18} />แก้ไขข้อมูล</Link></PageHeading><div className="split-view"><section><h2>ข้อมูลส่วนตัว</h2><ProfileDetails profile={profile} /></section><section><h2>ข้อมูลสุขภาพ</h2><dl className="data-list"><div><dt>ประเภทโรค</dt><dd>{strokeLabel[profile.stroke_type]}</dd></div><div><dt>วันที่วินิจฉัย</dt><dd>{dateLabel(profile.stroke_diagnosed_on)}</dd></div><div><dt>โรคประจำตัวอื่น</dt><dd>{profile.other_conditions || "ไม่ระบุ"}</dd></div><div><dt>แพทย์ประจำตัว</dt><dd>{profile.primary_doctor_name || "ไม่ระบุ"}</dd></div></dl><Link className="command" href="/patient/change-password"><KeyRound size={18} />เปลี่ยนรหัสผ่าน</Link></section></div><DisplaySettings /></>;
+  const initial = Array.from(profile.full_name.trim())[0] || "?";
+  return <div className="patient-profile-page"><PageHeading title="โปรไฟล์และข้อมูลส่วนตัว"><Link className="command primary profile-edit-action" href="/patient/profile/edit"><UserRound size={20} aria-hidden="true" />แก้ไขข้อมูลส่วนตัว</Link></PageHeading><p className="profile-intro">ข้อมูลของคุณจะถูกใช้เพื่อปรับแผนการฟื้นฟู</p><div className="profile-sections">
+    <section className="profile-card" aria-label="ข้อมูลส่วนตัว"><header className="profile-identity"><span className="profile-avatar" aria-hidden="true">{initial}</span><div><h2>{profile.full_name}</h2><p>HN: {profile.hn || "ไม่ระบุ"}</p></div></header><dl className="profile-fields"><div><dt>ชื่อ–นามสกุล</dt><dd>{profile.full_name}</dd></div><div><dt>โทรศัพท์</dt><dd>{profile.phone || "ไม่ระบุ"}</dd></div><div><dt>วันเกิด</dt><dd>{profile.date_of_birth ? dateLabel(profile.date_of_birth) : "ไม่ระบุ"}</dd></div><div><dt>อายุ / เพศ</dt><dd>{ageOn(profile.date_of_birth, dateInThailand())} / {sexLabel[profile.sex]}</dd></div></dl></section>
+    <section aria-labelledby="profile-health-title"><h2 className="profile-section-title" id="profile-health-title">ข้อมูลสุขภาพ</h2><div className="profile-card"><dl className="profile-fields"><div><dt>ประเภทโรค</dt><dd>{strokeLabel[profile.stroke_type]}</dd></div><div><dt>วันที่วินิจฉัย</dt><dd>{dateLabel(profile.stroke_diagnosed_on)}</dd></div><div className="profile-field-wide"><dt>โรคประจำตัวอื่น</dt><dd>{profile.other_conditions || "ไม่ระบุ"}</dd></div></dl></div></section>
+    <section aria-labelledby="profile-doctor-title"><h2 className="profile-section-title" id="profile-doctor-title">แพทย์ประจำตัว</h2><div className="profile-card"><p className="profile-doctor-name">{profile.primary_doctor_name?.trim() || "ยังไม่ระบุแพทย์ประจำตัว"}</p></div></section>
+    <div className="profile-actions"><div className="profile-settings-list"><DisplaySettings labeled className="profile-setting-item" /><Link className="command profile-setting-item" href="/patient/change-password"><KeyRound size={22} aria-hidden="true" /><span>เปลี่ยนรหัสผ่าน</span><ChevronRight size={20} aria-hidden="true" /></Link></div></div>
+  </div></div>;
 }
 export function ProfileDetails({ profile }: { profile: PatientProfile }) { return <dl className="data-list"><div><dt>ชื่อ - นามสกุล</dt><dd>{profile.full_name}</dd></div><div><dt>HN</dt><dd>{profile.hn || "ไม่ระบุ"}</dd></div><div><dt>วันเกิด</dt><dd>{profile.date_of_birth ? dateLabel(profile.date_of_birth) : "ไม่ระบุ"}</dd></div><div><dt>อายุ</dt><dd>{ageOn(profile.date_of_birth, dateInThailand())}</dd></div><div><dt>เพศ</dt><dd>{sexLabel[profile.sex]}</dd></div><div><dt>โทรศัพท์</dt><dd>{profile.phone || "ไม่ระบุ"}</dd></div></dl>; }
 export function ProfileEdit({ initialProfile }: { initialProfile: PatientProfile }) {

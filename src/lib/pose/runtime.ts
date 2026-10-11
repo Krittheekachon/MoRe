@@ -1,6 +1,6 @@
 import type { PosePoint } from "./types";
 
-export type PoseFrame = { points: PosePoint[]; world: PosePoint[]; timestamp: number; at: number; width: number; height: number };
+export type PoseFrame = { inferenceMs?: number; points: PosePoint[]; world: PosePoint[]; timestamp: number; at: number; width: number; height: number };
 export type PoseRuntime = { dispose: () => void };
 
 export function openPoseRuntime(video: HTMLVideoElement, onFrame: (frame: PoseFrame) => void, onStatus: (status: "loading" | "ready" | "error") => void): PoseRuntime {

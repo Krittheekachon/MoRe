@@ -26,8 +26,9 @@ self.onmessage = async (event: MessageEvent) => {
     const bitmap: ImageBitmap = message.bitmap;
     try {
       if (!task || closed) return;
+      const inferenceStarted = performance.now();
       const result = task.detectForVideo(bitmap, message.timestamp);
-      self.postMessage({ type: "pose", points: result.landmarks[0] || [], world: result.worldLandmarks[0] || [], timestamp: message.timestamp, at: message.at, width: bitmap.width, height: bitmap.height });
+      self.postMessage({ type: "pose", inferenceMs: performance.now() - inferenceStarted, points: result.landmarks[0] || [], world: result.worldLandmarks[0] || [], timestamp: message.timestamp, at: message.at, width: bitmap.width, height: bitmap.height });
       result.close();
     } catch { self.postMessage({ type: "error" }); }
     finally { bitmap.close(); }

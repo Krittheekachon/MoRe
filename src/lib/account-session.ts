@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { constantEqual, sessionBinding } from "./account-security";
 import type { PatientProfile } from "./demo-data";
 
-type AccountSession = { userId?: number; binding?: string };
+type AccountSession = { developer?: boolean; userId?: number; binding?: string };
 type RegistrationSession = { lookup?: string; encryptedId?: string; hash?: string; changeRequired?: boolean; completed?: boolean };
 
 function options(cookieName: string, ttl: number) {
@@ -33,6 +33,7 @@ export async function currentAccount() {
 
 export async function establishSession(id: number, hash: string) {
   const session = await accountSession();
+  delete session.developer;
   session.userId = id;
   session.binding = sessionBinding(id, hash);
   await session.save();

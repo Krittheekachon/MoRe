@@ -3,10 +3,9 @@
 import { MoreLogo } from "@/components/ui/more-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, ArrowLeft, Menu, X } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, ArrowLeft, Settings, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useDemo } from "./demo-provider";
-import { DisplayMenu, DisplaySettings } from "./display-settings";
 import { LogoutButton } from "./logout-button";
 import type { PatientProfile } from "@/lib/demo-data";
 
@@ -17,26 +16,38 @@ export function AppShell({ children, doctor = false, patientProfile, demo = fals
   const patient = patientProfile || profiles[0];
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const shell = shellRef.current, navigation = navigationRef.current;
+    if (doctor || !shell || !navigation) return;
+    // Measured height includes safe-area padding once, without a bottom offset.
+    const update = () => shell.style.setProperty("--patient-navigation-height", `${navigation.getBoundingClientRect().height}px`);
+    const observer = new ResizeObserver(update);
+    observer.observe(navigation);
+    update();
+    return () => { observer.disconnect(); shell.style.removeProperty("--patient-navigation-height"); };
+  }, [doctor]);
   const nav = doctor
     ? [{ href: "/doctor", label: "ผู้ป่วย", icon: UsersRound }, { href: "/doctor/templates", label: "แผนกลาง", icon: ClipboardList }]
     : [{ href: "/patient", label: "หน้าหลัก", icon: Home }, { href: "/patient/exercises", label: "ท่าฝึก", icon: ClipboardList }, { href: "/patient/progress", label: "ความก้าวหน้า", icon: CalendarDays }, { href: "/patient/profile", label: "โปรไฟล์", icon: UserRound }];
-  return <div className={`system-app ${doctor ? "doctor-app" : "patient-app"} ${cameraPage ? "camera-workspace" : ""}`}>
+  return <div ref={shellRef} className={`system-app ${doctor ? "doctor-app" : "patient-app"} ${cameraPage ? "camera-workspace" : ""}`}>
     <a className="skip-link" href="#workspace-content">ข้ามไปเนื้อหา</a>
     <header className="app-topbar">
-      {doctor && <button ref={menuRef} className="icon-command mobile-menu" aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} title={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>}
+      {doctor && <button ref={menuRef} className="icon-command mobile-menu" aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} title={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={22} /> : <Settings size={22} />}</button>}
       <Link className="app-brand" href={doctor ? "/doctor" : "/patient"}><MoreLogo size="navigation" tagline /></Link>
       <span className="app-role">{doctor ? "แพทย์ / นักกายภาพ" : "ผู้ป่วย"}</span>
       {demo && <span className="demo-label" aria-label="DEMO สังเคราะห์">DEMO<span className="demo-label-detail"> สังเคราะห์</span></span>}
-      <LogoutButton compact destination={doctor ? "/doctor/login" : "/"} />
+      <div className="app-logout"><LogoutButton compact={doctor} destination={doctor ? "/doctor/login" : "/"} /></div>
     </header>
     <aside className="app-sidebar">
       {!doctor && <Link className="app-brand sidebar-brand" href="/patient"><MoreLogo size="navigation" tagline /></Link>}
-      <nav id="workspace-navigation" className="app-navigation" data-open={menuOpen} aria-label={doctor ? "เมนูแพทย์" : "เมนูผู้ป่วย"} onKeyDown={event => { if (event.key === "Escape") { setMenuOpen(false); menuRef.current?.focus(); } }}>
+      <nav ref={navigationRef} id="workspace-navigation" className="app-navigation" data-open={menuOpen} aria-label={doctor ? "เมนูแพทย์" : "เมนูผู้ป่วย"} onKeyDown={event => { if (event.key === "Escape") { setMenuOpen(false); menuRef.current?.focus(); } }}>
       {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)} aria-current={(href === "/doctor" ? path === href || path.startsWith("/doctor/patients/") : href === "/patient" ? path === href : path.startsWith(href)) ? "page" : undefined}><Icon size={20} /><span>{label}</span></Link>)}
     </nav>
-      {!doctor && <div className="sidebar-footer"><Link className="sidebar-patient" href="/patient/profile"><span className="patient-avatar"><UserRound size={22} /></span><span><strong>{patient.full_name}</strong><small>ผู้ป่วย{patient.hn && ` · ${patient.hn}`}</small></span></Link><LogoutButton /></div>}
+      {!doctor && <div className="sidebar-footer"><Link className="sidebar-patient" href="/patient/profile"><span className="patient-avatar"><UserRound size={22} /></span><span><strong>{patient.full_name}</strong><small>ผู้ป่วย{patient.hn && ` · ${patient.hn}`}</small></span></Link></div>}
     </aside>
-    <main id="workspace-content" tabIndex={-1} className="app-main">{!doctor && (path === "/patient" || path === "/patient/exercises") && <div className="patient-display-toolbar">{path === "/patient" && <DisplaySettings />}<DisplayMenu navigation /></div>}{children}</main>
+    <main id="workspace-content" tabIndex={-1} className="app-main">{children}</main>
   </div>;
 }
 export function PageHeading({ title, subtitle, back, backLabel = "กลับ", children }: { title: string; subtitle?: string; back?: string; backLabel?: string; children?: ReactNode }) {

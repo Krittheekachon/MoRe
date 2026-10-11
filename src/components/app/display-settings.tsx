@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Menu, MoreHorizontal, Moon, Settings, Sun, X } from "lucide-react";
+import { ChevronRight, MoreHorizontal, Moon, Settings, Sun, X } from "lucide-react";
 import { fontSizeCookie, themeCookie, type FontSize, type Theme } from "@/lib/display-settings";
 
 const DisplayContext = createContext<{
@@ -61,10 +61,10 @@ export function DisplaySettingsProvider({ initialSize, initialTheme, children }:
   </DisplayContext.Provider>;
 }
 
-export function DisplaySettings({ className = "" }: { className?: string }) {
+export function DisplaySettings({ className = "", labeled = false }: { className?: string; labeled?: boolean }) {
   const settings = useContext(DisplayContext);
   if (!settings) throw new Error("DisplaySettingsProvider is required");
-  return <button type="button" className={`icon-command display-trigger ${className}`} aria-label="การแสดงผล" title="การแสดงผล" aria-haspopup="dialog" onClick={event => settings.open(event.currentTarget)}><Settings size={22} aria-hidden="true" /></button>;
+  return <button type="button" className={`${labeled ? "command" : "icon-command"} display-trigger ${className}`} aria-label="การแสดงผล" title="การแสดงผล" aria-haspopup="dialog" onClick={event => settings.open(event.currentTarget)}><Settings size={22} aria-hidden="true" />{labeled && <><span>การแสดงผล</span><ChevronRight size={20} aria-hidden="true" /></>}</button>;
 }
 
 export function DisplayMenu({ navigation = false }: { navigation?: boolean }) {
@@ -72,8 +72,9 @@ export function DisplayMenu({ navigation = false }: { navigation?: boolean }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const triggerRef = useRef<HTMLElement>(null);
   if (!settings) throw new Error("DisplaySettingsProvider is required");
+  if (navigation) return <DisplaySettings />;
   return <details ref={detailsRef} className="display-menu" onKeyDown={event => { if (event.key === "Escape") { detailsRef.current?.removeAttribute("open"); triggerRef.current?.focus(); } }}>
-    <summary ref={triggerRef} className="icon-command" aria-label={navigation ? "เมนูผู้ป่วยเพิ่มเติม" : "เมนูเพิ่มเติม"} title={navigation ? "เมนูผู้ป่วยเพิ่มเติม" : "เมนูเพิ่มเติม"}>{navigation ? <Menu size={22} /> : <MoreHorizontal size={24} />}</summary>
+    <summary ref={triggerRef} className="icon-command" aria-label="เมนูเพิ่มเติม" title="เมนูเพิ่มเติม"><MoreHorizontal size={24} /></summary>
     <div className="display-menu-items"><button type="button" className="command" onClick={() => { detailsRef.current?.removeAttribute("open"); if (triggerRef.current) settings.open(triggerRef.current); }}><Settings size={20} aria-hidden="true" />การแสดงผล</button></div>
   </details>;
 }

@@ -3,6 +3,7 @@ import { angleReturnEngine } from "./angle-return";
 import type { MovementSnapshot, PoseFeedback } from "../feedback-types";
 
 export interface RepetitionCounter {
+  readonly currentPeak?: number | null;
   readonly repetitions: CompletedRep[];
   readonly movement: MovementSnapshot;
   readonly debug?: { state: string; stableMs: number; requiredMs: number; reason: string };

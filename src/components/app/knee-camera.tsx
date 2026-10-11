@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Info, LogOut, Pause, Play, RotateCcw, Save } from "lucide-react";
 import { DisplaySettings } from "./display-settings";
+import { LogoutButton } from "./logout-button";
+import { KneeExerciseInstructions } from "./knee-exercise-guide";
 import { type DailyTrainingItem } from "@/lib/training-types";
 import { poseEngine, type RepetitionCounter } from "@/lib/pose/engines/registry";
 import { drawPoseOverlay } from "@/lib/pose/draw-overlay";
@@ -27,7 +29,7 @@ async function request<T>(url: string, method: string, body?: unknown): Promise<
 }
 
 export const KneeCamera = PoseCamera; // Compatibility for existing imports.
-export function PoseCamera({ assignment, approvalAvailable, demo = false, cameraTest = false }: { assignment: DailyTrainingItem; approvalAvailable: boolean; demo?: boolean; cameraTest?: boolean }) {
+export function PoseCamera({ assignment, approvalAvailable, demo = false, cameraTest = false, developer = false }: { assignment: DailyTrainingItem; approvalAvailable: boolean; demo?: boolean; cameraTest?: boolean; developer?: boolean }) {
   const router = useRouter();
   const [side, setSide] = useState(assignment.side === "left" || assignment.side === "right" ? assignment.side : "");
   const [camera, setCamera] = useState(false); const [opening, setOpening] = useState(false);
@@ -45,6 +47,9 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
   const [preparationView, setPreparationView] = useState<PreparationResult | null>(null);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugView, setDebugView] = useState<{ preparation: PreparationDebug | null; counter: RepetitionCounter["debug"]; lastCompleted: { peak: number; correct: boolean } | null; rawKnee: number | null; rawTorso: number | null; filteredKnee: number | null; filteredTorso: number | null; trusted: boolean } | null>(null);
+  const developerOverlay = useRef({ skeleton: true, ids: false, angles: true });
+  const [developerView, setDeveloperView] = useState<{ fps: number | null; inferenceMs: number | null; points: { id: number; point: import("@/lib/pose/types").PosePoint | null }[]; peak: number | null; feedback: string } | null>(null);
+  const developerFrameAt = useRef<number | null>(null);
   const lastViewAt = useRef(-Infinity);
   const [tracking, setTracking] = useState("ยังไม่เปิดกล้อง");
   const [trackingUnreliable, setTrackingUnreliable] = useState(false);
@@ -114,7 +119,9 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     if (!trusted) { filters.image.reset(); filters.world.reset(); }
     const displayPoints = trusted ? filters.image.update(result.points, result.at, definition?.minVisibility) : [];
     const points = definition?.coordinates === "world-3d" ? (trusted ? filters.world.update(result.world, result.at, definition.minVisibility, false) : []) : displayPoints;
-    const refreshView = result.at - lastViewAt.current >= 200 || !trusted;
+    const refreshView = result.at - lastViewAt.current >= 200;
+
+    if (refreshView) lastViewAt.current = result.at;
     if (refreshView) setLandmarkTracking(definition ? measurementLabels(definition, displayPoints) : []);
     const inFrame = definition?.landmarks.every(i => result.points[i] && result.points[i].x >= 0 && result.points[i].x <= 1 && result.points[i].y >= 0 && result.points[i].y <= 1);
     const angle = definition && inFrame && trusted ? poseEngine(definition).measure(points, definition, result.width, result.height) : null;
@@ -147,12 +154,18 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       if (allowed) counter.sample(angle, result.at, confidence); // Preview only when not actively counting.
       feedbackStatus = overlay.current.feedback.update(feedbackAllowed ? angle : null, result.at, confidence, counter.movement);
       const lastCompleted = counter.repetitions.at(-1);
-      if (cameraTest && refreshView) setDebugView({ preparation: preparation.current?.gate.debug ?? null, counter: counter.debug,
+      if (developer && refreshView) setDebugView({ preparation: preparation.current?.gate.debug ?? null, counter: counter.debug,
         lastCompleted: lastCompleted ? { peak: Number(lastCompleted.peakAngle.toFixed(2)), correct: engine.correct({ ...lastCompleted, peakAngle: Number(lastCompleted.peakAngle.toFixed(2)) }, definition) } : null,
         rawKnee: jointAngle(result.points, definition, result.width, result.height),
         rawTorso: definition.preparation ? jointAngle(result.points, { ...definition, landmarks: [definition.preparation.shoulder, definition.landmarks[0], definition.landmarks[1]] }, result.width, result.height) : null,
         filteredKnee: view?.knee ?? angle, filteredTorso: view?.torso ?? null, trusted });
     }
+    if (developer && refreshView) {
+      const previous = developerFrameAt.current;
+      const ids = definition ? [definition.preparation?.shoulder, ...definition.landmarks].filter((id): id is number => id !== undefined) : [];
+      setDeveloperView({ fps: previous === null ? null : 1000 / (result.at - previous), inferenceMs: result.inferenceMs ?? null, points: ids.map(id => ({ id, point: result.points[id] ?? null })), peak: cycle.current?.currentPeak ?? null, feedback: feedbackStatus });
+    }
+    if (developer) developerFrameAt.current = result.at;
     if (refreshView || angle === null) setCurrentAngle(definition?.preparation ? framePreparation?.knee ?? null : angle);
     const output = canvas.current;
     if (output) {
@@ -160,7 +173,24 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       const context = output.getContext("2d");
       if (context) {
         const focus = definition?.preparation ? [definition.preparation.shoulder, ...definition.landmarks, definition.preparation.heel, definition.preparation.foot] : undefined;
-        drawPoseOverlay(context, trusted ? displayPoints : [], output.width, output.height, feedbackStatus, focus);
+        drawPoseOverlay(context, (!developer || developerOverlay.current.skeleton) && trusted ? displayPoints : [], output.width, output.height, feedbackStatus, focus);
+        if (developer && developerOverlay.current.angles && definition && trusted) {
+          context.save(); context.strokeStyle = "#fbbf24"; context.lineWidth = 4;
+          const chains = [definition.landmarks, ...(definition.preparation ? [[definition.preparation.shoulder, definition.landmarks[0], definition.landmarks[1]]] : [])];
+          for (const chain of chains) {
+            if (!chain.every(id => displayPoints[id])) continue;
+            context.beginPath(); chain.forEach((id,index) => { const p = displayPoints[id]; if (index) context.lineTo(p.x * output.width, p.y * output.height); else context.moveTo(p.x * output.width, p.y * output.height); }); context.stroke();
+          }
+          context.restore();
+        }
+        if (developer && developerOverlay.current.ids && definition && trusted) {
+          context.save(); context.font = "20px sans-serif"; context.fillStyle = "#fff"; context.strokeStyle = "#000"; context.lineWidth = 4;
+          for (const id of [definition.preparation?.shoulder, ...definition.landmarks]) {
+            if (id === undefined || !displayPoints[id]) continue;
+            const point = displayPoints[id]; context.save(); context.translate(point.x * output.width, point.y * output.height); context.scale(-1, 1); context.strokeText(String(id), 0, 0); context.fillText(String(id), 0, 0); context.restore();
+          }
+          context.restore();
+        }
         if (definition) {
           const workspace = video.current?.closest(".pose-session");
           const rect = video.current?.getBoundingClientRect();
@@ -170,7 +200,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
           const imageTop = rect ? rect.top + (rect.height - output.height * scale) / 2 : 0;
           const safeArea = { top: Math.max(0, header ? (header.bottom - imageTop) / scale : 0), bottom: Math.min(output.height, card ? (card.top - imageTop) / scale : output.height) };
           const shown = framePreparation;
-          drawMeasurementLabels(context, displayPoints, output.width, output.height, definition, trusted, shown, !(cycle.current?.movement.phase === "moving"), safeArea);
+          if (developer && developerOverlay.current.angles) drawMeasurementLabels(context, displayPoints, output.width, output.height, definition, trusted, shown, !(cycle.current?.movement.phase === "moving"), safeArea);
           if (refreshView || shown?.knee === null || shown?.torso === null) {
             setPreparationView(previous => previous?.message === shown?.message && previous?.ready === shown?.ready && previous?.countdownRemaining === shown?.countdownRemaining && previous?.knee === shown?.knee && previous?.torso === shown?.torso ? previous : shown);
             lastViewAt.current = result.at;
@@ -189,13 +219,13 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     const timer = setInterval(() => { if (active.current) setSeconds(elapsedSeconds()); }, 250);
     const abandon = () => {
       active.current = false; cycle.current?.interrupt();
-      if (slot.current && !frozen.current) navigator.sendBeacon(`/api/patient/training/sets/${slot.current.setId}/state`, new Blob([JSON.stringify({ action: "exit", elapsedSeconds: elapsedSeconds() })], { type: "application/json" }));
+      if (!developer && slot.current && !frozen.current) navigator.sendBeacon(`/api/patient/training/sets/${slot.current.setId}/state`, new Blob([JSON.stringify({ action: "exit", elapsedSeconds: elapsedSeconds() })], { type: "application/json" }));
       closeCamera();
     };
     const visibility = () => { if (document.hidden) pauseLocally(); };
     window.addEventListener("pagehide", abandon); document.addEventListener("visibilitychange", visibility);
     return () => { abandon(); mounted.current = false; clearInterval(timer); window.removeEventListener("pagehide", abandon); document.removeEventListener("visibilitychange", visibility); closeCamera(); };
-  }, [closeCamera, elapsedSeconds, pauseLocally]);
+  }, [closeCamera, elapsedSeconds, pauseLocally, developer]);
   async function openCamera() {
     if (opening || stream.current) return;
     const attempt = ++generation.current; setOpening(true); setError("");
@@ -216,7 +246,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       if (!mounted.current || generation.current !== attempt) return;
       setCamera(true);
       if (approvalAvailable && side) {
-        const config = await request<{ criteria: PoseCriteria }>(`/api/patient/training/daily/${assignment.id}/recording?side=${side}`, "GET");
+        const config = await request<{ criteria: PoseCriteria }>(developer ? `/api/developer/criteria?side=${side}` : `/api/patient/training/daily/${assignment.id}/recording?side=${side}`, "GET");
         if (!mounted.current || generation.current !== attempt) return;
         measurement.current = refreshMockCameraPolicy(config.criteria);
         setDefinition(measurement.current);
@@ -231,7 +261,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     if (pending.current || frozen.current) return;
     if (active.current) {
       pauseLocally(); pending.current = true; setBusy(true);
-      try { if (slot.current) await request(`/api/patient/training/sets/${slot.current.setId}`, "PATCH", { action: "pause", elapsedSeconds: elapsedSeconds() }); }
+      try { if (!developer && slot.current) await request(`/api/patient/training/sets/${slot.current.setId}`, "PATCH", { action: "pause", elapsedSeconds: elapsedSeconds() }); }
       catch { if (mounted.current) setError("หยุดนับแล้ว แต่แจ้งสถานะพักไม่สำเร็จ ผลปัจจุบันยังอยู่"); }
       finally { pending.current = false; if (mounted.current) setBusy(false); }
       return;
@@ -239,14 +269,14 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     if ((!simulated.current && (!camera || modelStatus !== "ready")) || !side) return;
     pending.current = true; setBusy(true); setError("");
     try {
-      const result = await request<{ criteria: PoseCriteria }>(`/api/patient/training/daily/${assignment.id}/recording?side=${side}`, "GET");
+      const result = await request<{ criteria: PoseCriteria }>(developer ? `/api/developer/criteria?side=${side}` : `/api/patient/training/daily/${assignment.id}/recording?side=${side}`, "GET");
       result.criteria = refreshMockCameraPolicy(result.criteria);
       if (criteria.current) criteria.current = refreshMockCameraPolicy(criteria.current);
       if (criteria.current && cameraCriteriaSignature(criteria.current) !== cameraCriteriaSignature(result.criteria)) throw new Error("เกณฑ์เปลี่ยนแล้ว กรุณาบันทึกหรือติดต่อทีมรักษา");
       criteria.current = result.criteria; cycle.current ??= poseEngine(result.criteria).createCounter(result.criteria); cycle.current.interrupt();
       setDefinition(result.criteria);
-      if (!slot.current) slot.current = await request<RecordingSlot>(`/api/patient/training/daily/${assignment.id}/recording`, "POST", { side });
-      else await request(`/api/patient/training/sets/${slot.current.setId}`, "PATCH", { action: "resume", elapsedSeconds: elapsedSeconds() });
+      if (!developer && !slot.current) slot.current = await request<RecordingSlot>(`/api/patient/training/daily/${assignment.id}/recording`, "POST", { side });
+      else if (!developer && slot.current) await request(`/api/patient/training/sets/${slot.current.setId}`, "PATCH", { action: "resume", elapsedSeconds: elapsedSeconds() });
       if (!mounted.current || document.hidden || (!simulated.current && !stream.current)) return;
       setHasSlot(true);
       preparation.current = null;
@@ -270,7 +300,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     } finally { simulationJob.current = false; if (mounted.current) setSimulating(false); }
   }
   async function save() {
-    if (pending.current || !slot.current || !criteria.current) return;
+    if (developer || pending.current || !slot.current || !criteria.current) return;
     pauseLocally(); pending.current = true; setBusy(true); setError("");
     frozen.current ??= { side: side as Side, metricId: criteria.current.metricId, definitionVersion: criteria.current.definitionVersion, criteriaVersion: criteria.current.criteriaVersion, elapsedSeconds: elapsedSeconds(), repetitions: structuredClone(cycle.current?.repetitions || []) };
     setSaveUncertain(true);
@@ -288,14 +318,14 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     if (slot.current && !confirmed) { pauseLocally(); setPendingDiscard(exit ? "exit" : "reset"); return; }
     pauseLocally(); pending.current = true; setBusy(true); setError("");
     try {
-      if (slot.current) await request(`/api/patient/training/sets/${slot.current.setId}`, "PATCH", { action: exit ? "exit" : "restart", elapsedSeconds: elapsedSeconds() });
+      if (!developer && slot.current) await request(`/api/patient/training/sets/${slot.current.setId}`, "PATCH", { action: exit ? "exit" : "restart", elapsedSeconds: elapsedSeconds() });
       const previewCriteria = criteria.current ?? measurement.current;
       slot.current = null; criteria.current = null; cycle.current = null; elapsed.current = 0; setHasSlot(false); setReps(0); setCorrectReps(0); setSeconds(0); setPaused(false); setSummary(null);
       // Reset the draft, retaining the live stream, loaded worker and preview config.
       measurement.current = exit ? null : previewCriteria; setDefinition(measurement.current); setCurrentAngle(null);
-      overlay.current = null; setDebugView(null);
+      overlay.current = null; setDebugView(null); setDeveloperView(null); developerFrameAt.current = null;
       preparation.current = null; setPreparationView(null); lastViewAt.current = -Infinity;
-      if (exit) { closeCamera(); router.push("/patient/exercises"); }
+      if (exit) { closeCamera(); router.push(developer ? "/developer" : "/patient/exercises"); }
     } catch { setError("ยกเลิกเซตไม่สำเร็จ ผลที่ยังไม่บันทึกยังอยู่ กรุณาลองใหม่"); }
     finally { pending.current = false; if (mounted.current) setBusy(false); }
   }
@@ -305,28 +335,29 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       <header className="pose-session-header"><div className="pose-session-title"><h1>{assignment.exercise.name}</h1><p>เซต {Math.min(savedSets + 1, assignment.targetSets)} / {assignment.targetSets}</p></div><div className="pose-session-tools"><button className="command" disabled={opening || busy || saveUncertain} onClick={camera ? closeCamera : openCamera}><Camera size={18} />{opening ? "กำลังเปิดกล้อง" : camera ? "ปิดกล้อง" : "เปิดกล้อง"}</button><button className="command" aria-label="รายละเอียดท่า" title="รายละเอียดท่า" disabled={busy || saveUncertain} onClick={async () => { if (running) await toggle(); details.current?.showModal(); }}><Info size={18} /><span>รายละเอียดท่า</span></button></div></header>
       {!camera && <div className="camera-placeholder"><Camera size={48} /><p>กล้องยังไม่เปิด</p></div>}
       </div></div>
-      {camera && modelStatus === "ready" && ((preparationView && (!preparationView.ready || preparationView.countdownRemaining !== undefined)) || trackingUnreliable || tracking === "ไม่พบร่างกาย / tracking ขาดหาย") && <aside className="pose-tracking-card" data-ready={preparationView?.ready || false} role="alert" aria-live="polite" aria-label="คำแนะนำจัดตำแหน่งกล้อง"><Info size={24} aria-hidden="true" /><div><strong>{preparationView?.message || (tracking === "จุดวัดไม่ชัดเจน กรุณาจัดกล้องใหม่" ? "จุดวัดไม่ชัดเจน" : "ไม่พบร่างกาย")}</strong>{preparationView ? <p>เข่า {preparationView.knee === null ? "—" : `${Math.round(preparationView.knee)}°`} · ลำตัว {preparationView.torso === null ? "—" : `${Math.round(preparationView.torso)}°`}</p> : <p>ปรับตำแหน่งตัวหรือกล้องให้เห็นข้อต่อที่ใช้วัดครบ และไม่ถูกบัง</p>}{!preparationView && landmarkTracking.length > 0 && <p className="pose-tracking-points">{landmarkTracking.map(label => `${label.name}: ${Math.round(label.confidence * 100)}% vis`).join(" · ")}</p>}</div></aside>}
+      {camera && modelStatus === "ready" && ((preparationView && (!preparationView.ready || preparationView.countdownRemaining !== undefined)) || trackingUnreliable || tracking === "ไม่พบร่างกาย / tracking ขาดหาย") && <aside className="pose-tracking-card" data-ready={preparationView?.ready || false} role="alert" aria-live="polite" aria-label="คำแนะนำจัดตำแหน่งกล้อง"><Info size={24} aria-hidden="true" /><div><strong>{(preparationView?.message && (!developer && preparationView.message.includes("°") ? "นั่งบนเก้าอี้ให้มั่นคง หลังตรง และไม่โยกลำตัว" : preparationView.message)) || (tracking === "จุดวัดไม่ชัดเจน กรุณาจัดกล้องใหม่" ? "จุดวัดไม่ชัดเจน" : "ไม่พบร่างกาย")}</strong>{developer && preparationView ? <p>เข่า {preparationView.knee === null ? "—" : `${Math.round(preparationView.knee)}°`} · ลำตัว {preparationView.torso === null ? "—" : `${Math.round(preparationView.torso)}°`}</p> : <p>ปรับตำแหน่งตัวหรือกล้องให้เห็นข้อต่อที่ใช้วัดครบ และไม่ถูกบัง</p>}{developer && !preparationView && landmarkTracking.length > 0 && <p className="pose-tracking-points">{landmarkTracking.map(label => `${label.name}: ${Math.round(label.confidence * 100)}% vis`).join(" · ")}</p>}</div></aside>}
       <section className="pose-control-card" aria-label="เมนูฝึก"><div className="pose-card-tools"><button className="command pose-exit" disabled={busy || saveUncertain} onClick={() => discard(true)}><LogOut size={18} />ออก</button><span>{running ? "กำลังฝึก" : paused ? "พักการฝึก" : "พร้อมเริ่ม"}</span><button className="icon-command" aria-label="รีเซ็ตเซต" title="รีเซ็ตเซต" disabled={busy || saveUncertain} onClick={() => discard(false)}><RotateCcw size={22} /></button></div>
       <div className="pose-session-metrics">
-      <div className="pose-side-control" role="group" aria-label="ข้างที่ฝึก"><span>ข้างที่ฝึก</span><div className="pose-side-buttons">{(["left", "right"] as const).map(value => <button key={value} type="button" aria-pressed={side === value} disabled={running || paused || reps > 0 || busy || saveUncertain || (camera && !!side) || assignment.side === "left" || assignment.side === "right"} onClick={() => chooseSide(value)}><span aria-hidden="true">{side === value ? "✓ " : ""}</span>{value === "left" ? "ซ้าย" : "ขวา"}</button>)}</div>{!side && <small>เลือกข้างที่ฝึก</small>}</div>
-      <section className="camera-summary"><div><strong>{reps} / {assignment.targetReps}</strong><p>ครั้งในเซตนี้</p></div><div><strong>{correctReps}</strong><p>ครั้งที่ทำถูก{cameraTest ? " (ทดสอบ)" : ""}</p></div></section>
-      </div><div className="pose-secondary-scroll"><div className="pose-session-status"><p>มุมปัจจุบัน: {currentAngle === null ? "—" : `${currentAngle.toFixed(1)}°`}{definition && <> · เป้าหมาย {definition.correctPeak.min}–{definition.correctPeak.max}°</>} · {seconds} วินาที</p><p role="status">{opening ? "กำลังเปิดกล้อง" : modelStatus === "loading" ? "กำลังโหลด MediaPipe และโมเดลตรวจท่า" : modelStatus === "error" ? "การตรวจท่าไม่พร้อมใช้งาน" : `${modelStatus === "ready" ? "กล้องพร้อม · MediaPipe พร้อมใช้งาน · " : ""}${tracking}`}</p>{cameraTest && <small>โหมดทดสอบกล้อง · ไม่ใช่เกณฑ์ทางการแพทย์</small>}{!approvalAvailable && <p className="notice">เกณฑ์ท่านี้ยังไม่ยืนยัน เปิดกล้องได้ แต่ยังไม่นับหรือบันทึกผล</p>}{error && <p className="error-text" role="alert">{error}</p>}</div>
-      {cameraTest && <><button type="button" className="command" aria-expanded={debugEnabled} aria-controls="pose-test-debug" onClick={() => setDebugEnabled(value => !value)}>Debug ท่าทดสอบ</button>{debugEnabled && <section id="pose-test-debug" aria-label="Debug ท่าทดสอบ">
+      {side ? <div className="pose-side-control"><span>ข้างที่ฝึก</span><strong className="pose-side-value">{side === "left" ? "ซ้าย" : "ขวา"}</strong></div> : <div className="pose-side-control" role="group" aria-label="เลือกข้างก่อนเริ่มฝึก"><span>เลือกข้างก่อนเริ่มฝึก</span><div className="pose-side-buttons">{(["left", "right"] as const).map(value => <button key={value} type="button" disabled={running || paused || busy || saveUncertain} onClick={() => chooseSide(value)}>{value === "left" ? "ซ้าย" : "ขวา"}</button>)}</div></div>}
+      <section className="camera-summary"><div><strong>{reps} / {assignment.targetReps}</strong><p>ครั้งในเซตนี้</p></div><div><strong>{correctReps}</strong><p>ครั้งที่ทำถูก{developer ? " (ทดสอบ)" : ""}</p></div></section>
+      </div><div className="pose-secondary-scroll"><div className="pose-session-status">{!developer && <p>เวลาฝึก {seconds} วินาที</p>}{developer && <p>มุมปัจจุบัน: {currentAngle === null ? "—" : `${currentAngle.toFixed(1)}°`}{definition && <> · เป้าหมาย {definition.correctPeak.min}–{definition.correctPeak.max}°</>} · {seconds} วินาที</p>}<p role="status">{opening ? "กำลังเปิดกล้อง" : modelStatus === "loading" ? "กำลังเตรียมระบบตรวจท่า" : modelStatus === "error" ? "การตรวจท่าไม่พร้อมใช้งาน" : `${modelStatus === "ready" ? "กล้องพร้อม · " : ""}${tracking}`}</p>{!approvalAvailable && <p className="notice">เกณฑ์ท่านี้ยังไม่ยืนยัน เปิดกล้องได้ แต่ยังไม่นับหรือบันทึกผล</p>}{error && <p className="error-text" role="alert">{error}</p>}</div>
+      {developer && <section className="developer-controls"><LogoutButton /><p>Developer · ผลอยู่ในหน่วยความจำ ไม่บันทึกลงฐานข้อมูล</p><p>กล้อง: {opening ? "loading" : camera ? "ready" : error ? "error" : "ยังไม่เปิด"} · model: {modelStatus} · ข้าง: {side || "ไม่มีข้อมูล"}</p><div className="action-row"><button type="button" className="command" disabled={running || paused || camera} onClick={() => chooseSide(side === "left" ? "right" : "left")}>เปลี่ยนข้าง</button><button type="button" className="command" onClick={() => discard(false, true)}>รีเซ็ตผลทดสอบ</button>{(["skeleton", "ids", "angles"] as const).map(key => <label key={key}><input type="checkbox" defaultChecked={key !== "ids"} onChange={event => { developerOverlay.current[key] = event.target.checked; }} />{key === "skeleton" ? "Skeleton" : key === "ids" ? "landmark ID" : "เส้น/มุม"}</label>)}</div>{debugEnabled && <><p>FPS {developerView?.fps?.toFixed(1) ?? "ไม่มีข้อมูล"} · inference {developerView?.inferenceMs?.toFixed(2) ?? "ไม่มีข้อมูล"} ms · peak รอบปัจจุบัน {developerView?.peak?.toFixed(2) ?? "ไม่มีข้อมูล"} · feedback engine: {developerView?.feedback ?? "ไม่มีข้อมูล"}</p><p>พิกัด raw image normalized: x/y 0–1, z ความลึกสัมพัทธ์; มุม image-2d ใช้ x×videoWidth, y×videoHeight, ไม่ใช้ z · เข่า hip–knee–ankle · ลำตัว shoulder–hip–knee</p><div className="table-scroll"><table><thead><tr><th>ID</th><th>x</th><th>y</th><th>z</th><th>visibility</th></tr></thead><tbody>{developerView?.points.map(({id,point}) => <tr key={id}><td>{id}</td>{[point?.x,point?.y,point?.z,point?.visibility].map((value,index)=><td key={index}>{value?.toFixed(4) ?? "ไม่มีข้อมูล"}</td>)}</tr>)}</tbody></table></div></>}</section>}
+      {developer && <><button type="button" className="command" aria-expanded={debugEnabled} aria-controls="pose-test-debug" onClick={() => setDebugEnabled(value => !value)}>Debug ท่าทดสอบ</button>{debugEnabled && <section id="pose-test-debug" aria-label="Debug ท่าทดสอบ">
         {!camera || !definition ? <p>เปิดกล้องและเลือกข้างเพื่อดูข้อมูลสด</p> : <>
           <p>exercise: {definition.exerciseCode} · definition {definition.definitionVersion} / criteria {definition.criteriaVersion} · ข้าง {side}</p>
           <p>กล้อง {camera ? "เปิด" : "ปิด"} · model {modelStatus} · {running ? "เริ่มฝึกแล้ว" : paused ? "พัก" : "ยังไม่กดเริ่ม"} · acquisition {debugView?.trusted ? "ผ่าน" : "ไม่ผ่าน"}</p>
-          <p>Raw เข่า {debugView?.rawKnee?.toFixed(3) ?? "—"}° / ลำตัว {debugView?.rawTorso?.toFixed(3) ?? "—"}° · Filtered ที่ engine ใช้ {debugView?.filteredKnee?.toFixed(3) ?? "—"}° / {debugView?.filteredTorso?.toFixed(3) ?? "—"}°</p>
+          <p>Raw เข่า {debugView?.rawKnee?.toFixed(3) ?? "ไม่มีข้อมูล"}° / ลำตัว {debugView?.rawTorso?.toFixed(3) ?? "ไม่มีข้อมูล"}° · Filtered ที่ engine ใช้ {debugView?.filteredKnee?.toFixed(3) ?? "ไม่มีข้อมูล"}° / {debugView?.filteredTorso?.toFixed(3) ?? "ไม่มีข้อมูล"}°</p>
           <p>หน้าจอปัดเศษเพื่อแสดงผลเท่านั้น ตรวจและนับจาก filtered แบบไม่ปัดเศษ รวมขอบ min/max</p>
-          {debugView?.preparation?.checks.map(check => <p key={check.name}>{check.name}: {check.passed ? "ผ่าน" : "ไม่ผ่าน"} · {check.value?.toFixed(3) ?? "—"}{check.min !== undefined ? ` / ≥${check.min}` : ""}{check.max !== undefined ? ` และ ≤${check.max}` : ""}</p>)}
+          {debugView?.preparation?.checks.map(check => <p key={check.name}>{check.name}: {check.passed ? "ผ่าน" : "ไม่ผ่าน"} · {check.value?.toFixed(3) ?? "ไม่มีข้อมูล"}{check.min !== undefined ? ` / ≥${check.min}` : ""}{check.max !== undefined ? ` และ ≤${check.max}` : ""}</p>)}
           <p>รอบที่จบล่าสุด: {debugView?.lastCompleted ? `มุมสูงสุด ${debugView.lastCompleted.peak.toFixed(2)}° · ${debugView.lastCompleted.correct ? "ถูก" : "ไม่ถูก"} / เป้าหมาย ${definition.correctPeak.min}–${definition.correctPeak.max}°` : "ยังไม่มีรอบที่จบ ต้องเหยียดแล้วกลับครบก่อน"}</p>
-          <p>Blockers: {debugView?.preparation?.blockers.join(" · ") || "ไม่มี"} · นับถอยหลัง {preparationView?.countdownRemaining ?? "—"}</p>
-          <p>เกณฑ์รุ่น {definition.criteriaVersion} · เข่า {currentAngle?.toFixed(1) ?? "—"}° / เริ่ม {definition.start.min}–{definition.start.max}° · ออก ≥{definition.departureMin}° · กลับ {(definition.returned ?? definition.start).min}–{(definition.returned ?? definition.start).max}°</p>
-          <p>ลำตัว {preparationView?.torso?.toFixed(1) ?? "—"}° / {definition.preparation?.torsoThigh.min}–{definition.preparation?.torsoThigh.max}° · visibility ≥{definition.minVisibility}</p>
-          <p>สถานะ: {!debugView?.preparation?.locked ? "รอจัดท่า" : debugView.counter?.state} · ท่าเตรียมนิ่ง {Math.round(debugView?.preparation?.stableMs ?? 0)}/{debugView?.preparation?.requiredMs ?? 400} ms · รอบนิ่ง {Math.round(debugView?.counter?.stableMs ?? 0)}/{debugView?.counter?.requiredMs ?? definition.stableMs} ms</p>
+          <p>Blockers: {debugView?.preparation?.blockers.join(" · ") || "ไม่มี"} · นับถอยหลัง {preparationView?.countdownRemaining ?? "ไม่มีข้อมูล"}</p>
+          <p>เกณฑ์รุ่น {definition.criteriaVersion} · เข่า {currentAngle?.toFixed(1) ?? "ไม่มีข้อมูล"}° / เริ่ม {definition.start.min}–{definition.start.max}° · ออก ≥{definition.departureMin}° · กลับ {(definition.returned ?? definition.start).min}–{(definition.returned ?? definition.start).max}°</p>
+          <p>ลำตัว {preparationView?.torso?.toFixed(1) ?? "ไม่มีข้อมูล"}° / {definition.preparation?.torsoThigh.min}–{definition.preparation?.torsoThigh.max}° · visibility ≥{definition.minVisibility}</p>
+          <p>สถานะ: {!debugView?.preparation?.locked ? "รอจัดท่า" : debugView.counter?.state} · ท่าเตรียมนิ่ง {debugView?.preparation ? Math.round(debugView.preparation.stableMs) : "ไม่มีข้อมูล"}/{debugView?.preparation?.requiredMs ?? 400} ms · รอบนิ่ง {debugView?.counter ? Math.round(debugView.counter.stableMs) : "ไม่มีข้อมูล"}/{debugView?.counter?.requiredMs ?? definition.stableMs} ms</p>
           <p>ทิศทางข้างที่เลือก: {debugView?.preparation?.orientation ?? "ยังตรวจไม่ได้"} · ล็อกข้าง: {debugView?.preparation?.locked ? "ใช่" : "ยังไม่ยืนยัน"}</p>
           <p>เปรียบเทียบความลึก: {debugView?.preparation?.depth ?? "ไม่สามารถยืนยัน"} (ข้อมูลประกอบ ไม่บังคับผ่าน)</p>
           {definition.preparation?.singleSideOrientation && <p>ใช้ข้างที่เลือกเท่านั้น ไม่บังคับเห็นขาอีกข้าง · ค่า Δz เป็นข้อมูลประกอบ ไม่ใช้ยืนยันข้างใกล้กล้อง</p>}
-          <p>heel→foot {debugView?.preparation?.direction.foot?.toFixed(3) ?? "—"} · hip→knee {debugView?.preparation?.direction.thigh?.toFixed(3) ?? "—"} / ≥{definition.preparation?.minDirection} · Δz hip {debugView?.preparation?.direction.hipDepth?.toFixed(3) ?? "—"} · Δz knee {debugView?.preparation?.direction.kneeDepth?.toFixed(3) ?? "—"} / &gt;{definition.preparation?.minDepthDelta}</p>
+          <p>heel→foot {debugView?.preparation?.direction.foot?.toFixed(3) ?? "ไม่มีข้อมูล"} · hip→knee {debugView?.preparation?.direction.thigh?.toFixed(3) ?? "ไม่มีข้อมูล"} / ≥{definition.preparation?.minDirection} · Δz hip {debugView?.preparation?.direction.hipDepth?.toFixed(3) ?? "ไม่มีข้อมูล"} · Δz knee {debugView?.preparation?.direction.kneeDepth?.toFixed(3) ?? "ไม่มีข้อมูล"} / &gt;{definition.preparation?.minDepthDelta}</p>
           <p>ท่าเตรียม: {debugView?.preparation?.reason ?? "รอข้อมูล"} · รอบ: {debugView?.counter?.reason ?? "รอข้อมูล"}</p>
           {debugView?.preparation?.postureAdvice && <p>คำแนะนำ: นั่งหลังตรงและวางต้นขาให้ได้ระดับ</p>}
           <p>{debugView?.preparation?.landmarks.map(point => `${landmarkLabel(point.index)}: ${Math.round(point.confidence * 100)}%`).join(" · ")}</p>
@@ -335,13 +366,13 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       {paused && <section className="pause-panel" aria-label="พักการฝึก"><h2>พักการฝึก</h2><DisplaySettings /></section>}</div>
       <div className="pose-primary-actions">
         <button className="command primary" disabled={busy || saveUncertain || !!summary || savedSets >= assignment.targetSets || (!running && (!approvalAvailable || (!simulation && (modelStatus !== "ready" || !camera)) || !side))} onClick={toggle}>{running ? <Pause size={22} /> : <Play size={22} />}{running ? "หยุด" : "เริ่ม"}</button>
-        <button className="command primary" disabled={busy || !hasSlot || !!summary} onClick={save}><Save size={22} />{busy ? "กำลังดำเนินการ" : saveUncertain ? "ลองบันทึกอีกครั้ง" : "บันทึกเซต"}</button>
+        {!developer && <button className="command primary" disabled={busy || !hasSlot || !!summary} onClick={save}><Save size={22} />{busy ? "กำลังดำเนินการ" : saveUncertain ? "ลองบันทึกอีกครั้ง" : "บันทึกเซต"}</button>}
       </div>
-      {demo && !cameraTest && <fieldset className="action-row demo-source" disabled={running || paused || hasSlot || busy || simulating || !!summary}><legend>แหล่งข้อมูล Demo</legend><label><input type="radio" name="demo-source" checked={!simulation} onChange={() => { setSimulation(false); simulated.current = false; }} />กล้องทดลอง</label><label><input type="radio" name="demo-source" checked={simulation} onChange={() => { setSimulation(true); simulated.current = true; }} />รอบจำลอง (ไม่ใช่ AI)</label></fieldset>}
-        {demo && !cameraTest && simulation && <button className="command" disabled={!running || busy || simulating} onClick={simulate}><Play size={18} />{simulating ? "กำลังจำลองรอบ" : "รอบจำลอง"}</button>}
+      {developer && demo && !cameraTest && <fieldset className="action-row demo-source" disabled={running || paused || hasSlot || busy || simulating || !!summary}><legend>แหล่งข้อมูล Demo</legend><label><input type="radio" name="demo-source" checked={!simulation} onChange={() => { setSimulation(false); simulated.current = false; }} />กล้องทดลอง</label><label><input type="radio" name="demo-source" checked={simulation} onChange={() => { setSimulation(true); simulated.current = true; }} />รอบจำลอง (ไม่ใช่ AI)</label></fieldset>}
+        {developer && demo && !cameraTest && simulation && <button className="command" disabled={!running || busy || simulating} onClick={simulate}><Play size={18} />{simulating ? "กำลังจำลองรอบ" : "รอบจำลอง"}</button>}
       </section>
     <dialog ref={confirmation} className="app-dialog" aria-labelledby="pose-discard-title" onCancel={() => setPendingDiscard(null)}><h2 id="pose-discard-title">{pendingDiscard === "exit" ? "ออกโดยไม่บันทึกเซต?" : "รีเซ็ตเซตนี้?"}</h2><p>ผลเซตที่ยังไม่บันทึกจะถูกทิ้ง ผลเซตที่บันทึกแล้วคงเดิม</p><div className="action-row"><button autoFocus className="command" onClick={() => setPendingDiscard(null)}>ยกเลิก</button><button className="command primary" onClick={() => { const exit = pendingDiscard === "exit"; setPendingDiscard(null); discard(exit, true); }}>ยืนยัน</button></div></dialog>
-    <dialog ref={details} className="app-dialog" aria-labelledby="pose-details-title"><h2 id="pose-details-title">รายละเอียดท่า</h2><p>{assignment.exercise.name}</p><p>{assignment.instructions}</p><p>{assignment.exercise.tutorial}</p>{definition && <p>เริ่ม {definition.start.min}–{definition.start.max}° → ออกจากจุดเริ่มอย่างน้อย {definition.departureMin}° → กลับจุดเริ่มจึงนับ 1 ครั้ง · มุมสูงสุด {definition.correctPeak.min}–{definition.correctPeak.max}° จึงเข้าเกณฑ์{cameraTest ? "ทดสอบ" : ""}</p>}<button className="command" onClick={() => details.current?.close()}>ปิดรายละเอียด</button></dialog>
+    <dialog ref={details} className="app-dialog pose-details-dialog" aria-labelledby="pose-details-title"><h2 id="pose-details-title">{assignment.exercise.name}</h2>{assignment.exercise.code === "demo-knee-extension" ? <div className="exercise-guide-page"><KneeExerciseInstructions targetSets={assignment.targetSets} targetReps={assignment.targetReps} /></div> : <><p>{assignment.instructions}</p><p>{assignment.exercise.tutorial}</p></>}<button type="button" className="command" onClick={() => details.current?.close()}>ปิดรายละเอียด</button></dialog>
     <dialog ref={dialog} className="app-dialog" aria-labelledby="saved-set-title"><h2 id="saved-set-title">บันทึกเซตแล้ว</h2><p>{summary?.reps} / {assignment.targetReps} ครั้ง</p><p>มุมสูงสุด: {summary?.maxAngle?.toFixed(2) ?? "-"} องศา · เฉลี่ยมุมสูงสุด: {summary?.averageAngle?.toFixed(2) ?? "-"} องศา</p><p>{summary?.savedSets} / {assignment.targetSets} เซตที่บันทึก</p><div className="action-row">{savedSets < assignment.targetSets && <button className="command primary" onClick={() => { dialog.current?.close(); discard(false); }}>เซตถัดไป</button>}<Link className="command" href="/patient/exercises">ดูแผนวันนี้</Link><button className="command" onClick={() => dialog.current?.close()}>ปิด</button></div></dialog>
   </div>;
 }

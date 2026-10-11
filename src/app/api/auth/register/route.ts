@@ -3,6 +3,7 @@ import { mutation } from "@/lib/account-http";
 import { registrationSession } from "@/lib/account-session";
 import { AccountError, choice, date, onlyFields, personalFields } from "@/lib/account-validation";
 import { limitAttempts } from "@/lib/account-rate-limit";
+import { allocatePatientHn } from "@/lib/patient-hn";
 
 export async function POST(request: Request) {
   return mutation(request, async data => {
@@ -21,13 +22,14 @@ export async function POST(request: Request) {
     const now = new Date();
     try {
       await prisma.$transaction(async tx => {
+        const hn = await allocatePatientHn(tx);
         await tx.user.create({ data: {
           role: "patient", login_name: null, password_hash: session.hash!, password_change_required: !!session.changeRequired,
           display_name: Array.from(personal.full_name).slice(0, 100).join(""), created_at: now, updated_at: now,
-          patientProfile: { create: { ...personal, stroke_type: stroke, stroke_diagnosed_on: diagnosed,
+          patientProfile: { create: { ...personal, hn, stroke_type: stroke, stroke_diagnosed_on: diagnosed,
             national_id_lookup: session.lookup!, national_id_encrypted: session.encryptedId!, updated_at: now } },
         } });
-      });
+      }, { isolationLevel: "ReadCommitted" });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2002") throw new AccountError("ไม่สามารถสมัครด้วยข้อมูลนี้ได้ กรุณาตรวจสอบข้อมูลหรือติดต่อสถานพยาบาล", 409);
       throw error;

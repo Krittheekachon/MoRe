@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { accountRequest } from "@/lib/account-client";
@@ -21,7 +21,7 @@ export function CameraTestPlan({ templates, activePlan }: { templates: TrainingT
     finally { setPending(false); }
   }
   return <div className="exercise-picker"><PageHeading title="เลือกแผนการฝึก" back="/patient" />
-    <p className="notice">โหมดทดสอบกล้อง · มุมและเป้าหมายใช้ทดสอบซอฟต์แวร์เท่านั้น</p>
+
     {activePlan && <p>แผนปัจจุบัน: {activePlan.name} · หากมีแผนวันนี้แล้ว แผนใหม่เริ่มวันถัดไป โดยคงผลเดิม</p>}
     {!item ? <p role="alert">ยังไม่มีข้อมูลทดสอบ กรุณารัน npm run demo:seed</p> : <form onSubmit={save}>
       <details className="exercise-picker-module"><summary>Module {item.exercise.module} · {item.exercise.moduleName}</summary>

@@ -1,5 +1,7 @@
 # UI Map
 
+Patient shell bottom navigation (2026-10-10): below 1024px, pin `.app-sidebar` with native fixed bottom/left/right insets; remove visualViewport pixel-top synchronization and translateY positioning. Existing safe-area padding and main-content bottom clearance remain; desktop keeps its sticky sidebar and camera still hides shell navigation. Verified scrolling/resize on Chromium and desktop WebKit viewports; physical iPad toolbar behavior remains unverified.
+
 Shared logo (2026-10-06): replace raster marks in Login, RegisterIntro, review/completion, staff Login/recovery and existing shell branding with `MoreLogo`. Keep the existing containers, navigation and form composition; registration's existing hidden mobile/iPad mark is now a compact wordmark above its heading as requested. Login uses a 56px symbol, compact pages 32px, navigation 40px (32px on narrow screens); CSS preserves square SVG proportions and theme text. Transparent SVG has no background rectangle, decorative dots, embedded bitmap or filter. Browser screenshots reviewed for mobile dark/XL, iPad light/normal and shared shell branding. Camera composition is unchanged.
 
 Registration completion (2026-10-06): successful review confirmation clears the registration draft and replaces the route with Login (`/`) immediately, per user request.
@@ -281,3 +283,23 @@ Latest correction (2026-10-09, subsequent user decision): return to a full-viewp
 Latest camera screen: PoseCamera uses a full-viewport camera background with identical video/canvas contain-and-mirror geometry. The camera shell hides its normal top bar. Exercise name/current set replace Back at top left; camera and Details controls sit at top right. Bottom control card contains side, total and correct completed repetitions, angle/actual criteria target, elapsed time, Start→Stop→Resume, initially disabled Save, small Exit at top left and icon Reset at top right. Details pause active counting and open an in-page dialog. Mobile Details uses an accessible icon; short/landscape screens can scroll rather than hiding controls. This camera-only change supersedes the general Back placement rule for this screen.
 
 The existing `/patient/plan` route uses the normal `TrainingPlanSelection` for all patients. The shared Mock template adds one camera-test exercise, module identity from DB, and editable test targets/side through the existing plan API; other clinical templates remain available. `/patient/exercises`, guide, camera and progress retain their routes/navigation and add clear test provenance. Test and clinical results have separate history/calendar filters. Usage and device-review limits: [camera-test-mode.md](camera-test-mode.md).
+
+### Patient home navigation update (2026-10-10)
+
+Patient logout includes its text in the top-right header. Mobile and tablet navigation uses a fixed bottom wrapper with safe-area padding; desktop uses the existing left sidebar and keeps logout in the header. The camera-test provenance banner is hidden only on the home route; test identification remains on training-related routes. Chromium responsive checks cover 390x844, 834x1194 and 1440x900, including scrolling; physical iPad verification is still required.
+
+Mobile/tablet bottom navigation now follows the VisualViewport bottom after hydration to accommodate changing browser chrome; 100dvh is the CSS fallback. Desktop sidebar stays unchanged. Physical iPad collapse/expand verification remains pending.
+
+
+2026-10-11 supersedes VisualViewport navigation positioning: bottom navigation uses CSS fixed bottom:0 without coordinate offsets. Content padding follows measured nav height including safe-area once. Touch tablet landscape retains bottom navigation; desktop fine-pointer/hover devices use sidebar. Physical iPad toolbar verification pending.
+
+
+Seated Knee Extension guide (2026-10-11): single column at every width, max 760px, title then demo-media state, numbered instructions, caution and existing camera entry. No demonstration video asset is currently available. This supersedes the guide's two-column tablet adaptation for the connected training guide.
+
+Developer camera route (2026-10-11): /developer is development-only and server-authorized. Reuses the full-screen PoseCamera; responsive technical controls/debug remain within the existing scrollable control card. Patient camera keeps positioning guidance and recording without technical panels. See developer-camera-mode.md.
+
+Patient profile (2026-10-11): single-column personal/health cards followed by Settings rows for display and password; edit action is local to personal heading. Narrow-phone data labels stack above values. Uses existing tokens/dialog and bottom-nav padding.
+
+Patient profile reference composition supersedes earlier card arrangement: identity and personal field grid, health card, separate primary-doctor card, then centered edit/display/password/logout. Max-width 800px; label-above-value, 1 column on narrow/xl and 2 otherwise. Existing theme tokens and navigation retained.
+
+Profile Edit action now sits at the top right beside the page title, wrapping on narrow screens; supersedes centered bottom Edit placement.

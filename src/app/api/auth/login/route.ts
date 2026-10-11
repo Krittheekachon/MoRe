@@ -1,3 +1,5 @@
+import { developerCredentials } from "@/lib/developer-policy";
+import { establishDeveloperSession } from "@/lib/developer-session";
 import { prisma } from "@/lib/prisma";
 import { mutation } from "@/lib/account-http";
 import { establishSession } from "@/lib/account-session";
@@ -8,6 +10,12 @@ import { limitAttempts } from "@/lib/account-rate-limit";
 export async function POST(request: Request) {
   return mutation(request, async data => {
     onlyFields(data, ["nationalId", "password"]);
+    if (data.nationalId === "dev") {
+      limitAttempts("developer-login", 10);
+      if (!developerCredentials(data.nationalId, data.password)) throw new AccountError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", 401);
+      await establishDeveloperSession();
+      return { ok: true, destination: "/developer" };
+    }
     const lookup = nationalIdLookup(nationalId(data));
     const supplied = password(data, "password", 1);
     limitAttempts("login-global", 150);

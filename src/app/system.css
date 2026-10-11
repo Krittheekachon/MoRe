@@ -32,6 +32,9 @@
 .display-panel svg, .display-trigger svg { flex-shrink: 0; }
 .login-page > .auth-display-toolbar { width: 100%; max-width: 960px; align-self: center; margin-bottom: 16px; }
 .patient-display-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 16px; }
+.exercise-heading-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.heading-line:has(.exercise-heading-actions) > div:first-child { min-width: 0; }
+@media (max-width: 359px) { .exercise-heading-actions .command { padding-inline: 8px; } }
 .pause-panel { margin-top: 24px; padding-block: 16px; border-block: 1px solid var(--line); }
 .pause-panel h2 { margin-bottom: 12px; }
 @media (max-width: 767px) {
@@ -85,7 +88,7 @@ html[data-theme="dark"] .system-app :is(input, textarea)::placeholder { color: v
 .app-navigation a { display: flex; gap: 10px; align-items: center; padding: 10px 16px; min-height: 48px; border-radius: 8px; color: var(--muted); font-weight: 500; }
 .app-navigation a[aria-current] { color: var(--ui-primary-dark); background: var(--ui-primary-soft); font-weight: 600; }
 .app-main { width: 100%; max-width: 1160px; margin: 0 auto; padding: 28px 24px; }
-.patient-app .app-main { max-width: 1040px; padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+.patient-app .app-main { max-width: 1040px; padding-bottom: calc(var(--patient-navigation-height, calc(72px + env(safe-area-inset-bottom))) + 24px); }
 .page-heading { margin-bottom: 20px; }
 .page-heading h1 { font-size: 1.625rem; line-height: 1.35; font-weight: 700; overflow-wrap: anywhere; }
 .page-heading p { color: var(--muted); margin-top: 4px; font-size: 0.9375rem; }
@@ -159,6 +162,41 @@ html[data-theme="dark"] .system-app :is(input, textarea)::placeholder { color: v
 .empty-state > svg { margin: 0 auto 16px; }
 .empty-state .command { margin-top: 20px; }
 .split-view { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; }
+.profile-sections { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.profile-card { padding: clamp(20px, 3vw, 32px); border: 1px solid var(--line); border-radius: 16px; background: var(--ui-surface); }
+.profile-card-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.profile-card h2 { margin: 0; }
+.profile-card .data-list { margin-bottom: 0; }
+.profile-card .data-list dd { margin: 0; }
+.profile-card .data-list > div:last-child { border-bottom: 0; }
+.profile-settings-list { display: grid; gap: 12px; margin-top: 20px; }
+.profile-settings-list .profile-setting-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; width: 100%; min-height: 56px; padding: 14px 16px; text-align: left; white-space: normal; }
+.profile-setting-item span { overflow-wrap: anywhere; }
+.patient-profile-page { max-width: 800px; margin-inline: auto; }
+.profile-intro { color: var(--muted); margin: -12px 0 24px; }
+.profile-identity { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.profile-identity h2 { overflow-wrap: anywhere; }
+.profile-identity p { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+.profile-avatar { display: grid; place-items: center; width: 64px; height: 64px; flex: 0 0 64px; border-radius: 50%; background: var(--ui-primary-soft); color: var(--ui-primary); font-size: 1.5rem; font-weight: 700; }
+.profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 0; }
+.profile-fields dt { color: var(--muted); font-size: .9375rem; margin-bottom: 6px; }
+.profile-fields dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.profile-field-wide { grid-column: 1 / -1; }
+.profile-section-title { margin: 0 0 12px; }
+.profile-doctor-name { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.profile-actions { display: grid; justify-items: center; }
+.profile-edit-action { min-height: 56px; white-space: normal; text-align: center; flex-shrink: 0; }
+.patient-profile-page .heading-line { align-items: flex-start; }
+.profile-actions .profile-settings-list { width: 100%; margin-top: 0; }
+html[data-size="xl"] .patient-profile-page .profile-fields { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 600px) {
+  .profile-fields { grid-template-columns: minmax(0, 1fr); }
+  .profile-edit-action { width: 100%; }
+}
+@media (max-width: 480px) {
+  .profile-card .data-list > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .profile-card-heading { align-items: flex-start; flex-direction: column; }
+}
 .data-list { margin: 16px 0; }
 .data-list > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--ui-line-soft); }
 .data-list dt { color: var(--muted); font-size: 0.9375rem; }
@@ -292,7 +330,7 @@ html[data-theme="dark"] .system-app :is(input, textarea)::placeholder { color: v
   .patient-app .form-stack:has(input[type=tel]) > label { margin-top: 0; }
   .patient-app .form-stack:has(input[type=tel]) > :is(.action-row, .notice, .error-text) { grid-column: 1 / -1; }
 }
-@media(min-width: 1024px) {
+@media(min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .patient-app { display: grid; grid-template-columns: 260px minmax(0, 1fr); align-items: start; }
   .patient-app .app-topbar { display: none; }
   .patient-app .app-sidebar { display: flex; flex-direction: column; position: sticky; top: 0; height: 100dvh; padding: 24px 16px; background: var(--ui-surface); border-right: 1px solid var(--line); overflow-y: auto; }
@@ -375,3 +413,42 @@ html[data-theme="dark"] .system-app :is(input, textarea)::placeholder { color: v
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 16px; }
 .app-topbar .demo-label { flex-shrink: 0; }
 @media(max-width: 520px) { .app-topbar .demo-label-detail { display: none; } .app-topbar:has(.demo-label) .app-brand small { display: none; } }
+
+/* Patient shell: pin the mobile nav container itself, including Safari/iPad. */
+.patient-app .app-logout { margin-left: auto; flex-shrink: 0; }
+@media (max-width: 1023px), (hover: none), (pointer: coarse) {
+  .patient-app .app-sidebar { display: block; position: fixed; top: auto; bottom: 0; left: 0; right: 0; margin: 0; transform: none; z-index: 30; background: var(--ui-surface); }
+  .patient-app .app-navigation { position: static; width: 100%; }
+  .patient-app .app-main { padding-bottom: calc(var(--patient-navigation-height, calc(72px + env(safe-area-inset-bottom))) + 24px); }
+  .patient-app .app-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .patient-app .app-topbar > .app-brand { grid-column: 1; grid-row: 1; min-width: 0; align-self: center; }
+  .patient-app .app-topbar > .app-logout { grid-column: 2; grid-row: 1; justify-self: end; margin: 0; }
+  .patient-app .app-topbar > .demo-label { grid-column: 1 / -1; grid-row: 2; justify-self: start; margin: 0; }
+  .patient-app .app-logout .command { white-space: nowrap; }
+  .patient-app .app-role { display: none; }
+}
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .patient-app .app-topbar { display: flex; grid-column: 2; grid-row: 1; justify-content: flex-end; }
+  .patient-app .app-topbar > .app-brand, .patient-app .app-topbar > .app-role { display: none; }
+  .patient-app .app-sidebar { grid-column: 1; grid-row: 1 / span 2; }
+  .patient-app .app-main { grid-column: 2; grid-row: 2; }
+}
+
+.exercise-guide-page, .exercise-guide-stack { width: 100%; max-width: 760px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.exercise-guide-page .page-heading { margin-bottom: 0; }
+.exercise-guide-page h2 { margin-bottom: 12px; font-size: 1.125rem; }
+.exercise-guide-page .guide-steps { padding: 0; list-style: none; }
+.exercise-guide-page .guide-steps li { align-items: flex-start; line-height: 1.7; }
+.exercise-guide-page .guide-placeholder { width: 100%; }
+.exercise-guide-page > .notice { margin: 0; }
+.exercise-guide-page .action-row { margin-top: 0; justify-content: center; }
+.exercise-guide-page .guide-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+.exercise-guide-page .guide-actions > .command { width: 100%; min-height: 56px; }
+.pose-details-dialog { width: min(760px, calc(100% - 32px)); }
+.pose-details-dialog > h2 { margin-bottom: 24px; }
+.pose-details-dialog > button { display: flex; width: 100%; min-height: 56px; margin-top: 24px; }
+
+.developer-workspace { min-height: 100dvh; }
+.developer-controls { padding: 12px 0; }
+.developer-controls table { width: 100%; }
+.developer-controls .action-row { gap: 16px; }
