@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
-import { Plus, Save, Pencil } from "lucide-react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
+import { Plus, Save, Pencil, Search, ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
 import { PageHeading, EmptyState } from "./shell";
 import type { staffPatientData, staffTemplates, staffCatalog } from "@/lib/doctor-service";
 import { ResultsHistory } from "./results-views";
 import { requestId as newRequestId } from "@/lib/request-id";
+import { getPrototypeDoctorPatients } from "@/lib/prototype-doctor-patients";
 
 async function submit(url: string, method: string, body: unknown) {
   const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -15,13 +16,288 @@ async function submit(url: string, method: string, body: unknown) {
 type Templates = Awaited<ReturnType<typeof staffTemplates>>;
 type Catalog = Awaited<ReturnType<typeof staffCatalog>>;
 type PatientData = Awaited<ReturnType<typeof staffPatientData>>;
-type Patient = { patient_id: number; hn: string | null; full_name: string; sex: string | null; birthDate: string | null };
-export function DoctorPatientList({ patients }: { patients: Patient[] }) {
-  const [query, setQuery] = useState(""); const [page, setPage] = useState(0);
-  const rows = patients.filter(patient => `${patient.full_name} ${patient.hn || ""}`.toLowerCase().includes(query.toLowerCase()));
-  return <><PageHeading title="ผู้ป่วย" /><label className="filter-bar">ค้นหาชื่อ / HN<input type="search" value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} /></label><p>{rows.length} คน · สูงสุด 500 รายการ</p>
-    {!rows.length ? <EmptyState title="ไม่พบผู้ป่วย" /> : <div className="exercise-list">{rows.slice(page * 10, page * 10 + 10).map(patient => <article className="exercise-row" key={patient.patient_id}><div><h2>{patient.full_name}</h2><p>HN {patient.hn || "-"} · วันเกิด {patient.birthDate || "-"}</p></div><Link className="command" href={`/doctor/patients/${patient.patient_id}`}>ดูข้อมูล</Link></article>)}</div>}
-    <div className="action-row"><button className="command" disabled={!page} onClick={() => setPage(page - 1)}>ก่อนหน้า</button><span>{page + 1} / {Math.max(1, Math.ceil(rows.length / 10))}</span><button className="command" disabled={(page + 1) * 10 >= rows.length} onClick={() => setPage(page + 1)}>ถัดไป</button></div></>;
+export type DoctorPatient = {
+  patient_id: number;
+  hn: string | null;
+  full_name: string;
+  sex: string | null;
+  birthDate: string | null;
+  age: number | null;
+  phone: string | null;
+  sessionCount: number;
+  lastUpdated: string | null;
+};
+
+function formatThaiDate(dateStr: string | null): string {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  if (!Number.isFinite(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    calendar: "buddhist",
+    timeZone: "Asia/Bangkok",
+  }).format(date);
+}
+
+function getPageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const current = currentPage + 1;
+  if (current <= 4) return [1, 2, 3, 4, "...", totalPages];
+  if (current >= totalPages - 3) return [1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  return [1, "...", current - 1, current, current + 1, "...", totalPages];
+}
+
+const PAGE_SIZE_STORAGE_KEY = "more_doctor_page_size";
+
+export function DoctorPatientList({ patients }: { patients: DoctorPatient[] }) {
+  const [query, setQuery] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [pageSizeInput, setPageSizeInput] = useState("10");
+  const [page, setPage] = useState(0);
+
+  const displayPatients = useMemo(() => {
+    return getPrototypeDoctorPatients(patients);
+  }, [patients]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 500) {
+          setPageSize(parsed);
+          setPageSizeInput(String(parsed));
+        }
+      }
+    } catch {}
+  }, []);
+
+  function updatePageSize(num: number) {
+    const clamped = Math.min(Math.max(1, num), 500);
+    setPageSize(clamped);
+    setPageSizeInput(String(clamped));
+    setPage(0);
+    try {
+      localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(clamped));
+    } catch {}
+  }
+
+  function handlePageSizeChange(val: string) {
+    setPageSizeInput(val);
+    const num = parseInt(val, 10);
+    if (!isNaN(num) && num > 0) {
+      updatePageSize(num);
+    }
+  }
+
+  function handleBlur() {
+    const num = parseInt(pageSizeInput, 10);
+    if (isNaN(num) || num < 1) {
+      setPageSizeInput(String(pageSize));
+    } else {
+      updatePageSize(num);
+    }
+  }
+
+  function handleIncrement() {
+    updatePageSize(pageSize + 1);
+  }
+
+  function handleDecrement() {
+    updatePageSize(pageSize - 1);
+  }
+
+  const q = query.trim().toLowerCase();
+  const filtered = displayPatients.filter(patient => {
+    if (!q) return true;
+    return (
+      patient.full_name.toLowerCase().includes(q) ||
+      (patient.hn && patient.hn.toLowerCase().includes(q)) ||
+      (patient.phone && patient.phone.toLowerCase().includes(q)) ||
+      q.includes("demo") ||
+      "more-demo-01".includes(q) ||
+      "more-demo-02".includes(q)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+  const rows = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
+
+  return (
+    <div className="doctor-overview">
+      <header className="doctor-overview-header">
+        <h1 aria-label="ผู้ป่วย">รายชื่อผู้ป่วย</h1>
+        <p>ค้นหาและตรวจสอบข้อมูลผู้ป่วยที่อยู่ในการดูแล</p>
+      </header>
+
+      <section className="doctor-overview-card" aria-label="ตารางรายชื่อผู้ป่วย">
+        <div className="doctor-overview-toolbar">
+          <div className="doctor-overview-search">
+            <Search size={18} className="search-icon" aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={event => {
+                setQuery(event.target.value);
+                setPage(0);
+              }}
+              placeholder="ค้นหาด้วยชื่อ, Patient ID หรือเบอร์โทรศัพท์"
+              aria-label="ค้นหาด้วยชื่อ, Patient ID หรือเบอร์โทรศัพท์"
+            />
+          </div>
+
+          <div className="doctor-overview-pagesize">
+            <label htmlFor="pageSizeInput">จำนวนรายชื่อต่อหน้า</label>
+            <div className="pagesize-stepper-box">
+              <input
+                id="pageSizeInput"
+                type="number"
+                min={1}
+                max={500}
+                value={pageSizeInput}
+                onChange={event => handlePageSizeChange(event.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={event => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  }
+                }}
+                className="pagesize-number-input"
+                aria-label="จำนวนรายชื่อต่อหน้า"
+              />
+              <div className="pagesize-stepper-arrows">
+                <button
+                  type="button"
+                  className="stepper-arrow-btn"
+                  onClick={handleIncrement}
+                  aria-label="เพิ่มจำนวนรายชื่อต่อหน้า"
+                  tabIndex={-1}
+                >
+                  <ChevronUp size={12} strokeWidth={2.5} />
+                </button>
+                <button
+                  type="button"
+                  className="stepper-arrow-btn"
+                  onClick={handleDecrement}
+                  aria-label="ลดจำนวนรายชื่อต่อหน้า"
+                  tabIndex={-1}
+                >
+                  <ChevronDown size={12} strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {!filtered.length ? (
+          <EmptyState title="ไม่พบผู้ป่วยที่ค้นหา">
+            {query && (
+              <button
+                type="button"
+                className="command"
+                style={{ marginTop: "12px" }}
+                onClick={() => {
+                  setQuery("");
+                  setPage(0);
+                }}
+              >
+                ล้างคำค้นหา
+              </button>
+            )}
+          </EmptyState>
+        ) : (
+          <div className="doctor-overview-table" role="feed" aria-label="รายชื่อผู้ป่วย">
+            {rows.map((patient, index) => {
+              const sexLabel = patient.sex
+                ? patient.sex.toLowerCase() === "male" || patient.sex === "ชาย"
+                  ? "ชาย"
+                  : patient.sex.toLowerCase() === "female" || patient.sex === "หญิง"
+                  ? "หญิง"
+                  : patient.sex
+                : "-";
+              const ageAndSex = patient.age !== null ? `${patient.age} ปี · ${sexLabel}` : sexLabel !== "-" ? sexLabel : "-";
+              const sessionText = patient.sessionCount > 0 ? `กายภาพครั้งที่ ${patient.sessionCount}` : "ยังไม่มีประวัติกายภาพ";
+              const lastUpdateText = patient.lastUpdated ? `อัปเดตล่าสุด ${formatThaiDate(patient.lastUpdated)}` : "-";
+
+              return (
+                <article className="doctor-overview-row patient-row" key={`${patient.hn}-${patient.full_name}-${index}`}>
+                  <div className="row-col col-hn">
+                    <span className="hn-text">{patient.hn || "-"}</span>
+                  </div>
+                  <div className="row-col col-name">
+                    <h2 className="patient-name">{patient.full_name}</h2>
+                  </div>
+                  <div className="row-col col-age-sex">
+                    <span>{ageAndSex}</span>
+                  </div>
+                  <div className="row-col col-session">
+                    <span>{sessionText}</span>
+                  </div>
+                  <div className="row-col col-updated">
+                    <span>{lastUpdateText}</span>
+                  </div>
+                  <div className="row-col col-action">
+                    <Link
+                      className="doctor-overview-action"
+                      href={`/doctor/patients/${patient.patient_id}`}
+                    >
+                      <span>ตรวจสอบ</span>
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="doctor-overview-footer">
+          <div className="doctor-overview-pagination">
+            <button
+              type="button"
+              className="page-nav-btn"
+              disabled={currentPage === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+            >
+              ก่อนหน้า
+            </button>
+
+            <div className="page-numbers">
+              {getPageNumbers(currentPage, totalPages).map((p, idx) =>
+                typeof p === "number" ? (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`page-num-btn ${p === currentPage + 1 ? "active" : ""}`}
+                    onClick={() => setPage(p - 1)}
+                    aria-current={p === currentPage + 1 ? "page" : undefined}
+                  >
+                    {p}
+                  </button>
+                ) : (
+                  <span key={`ellipsis-${idx}`} className="page-ellipsis" aria-hidden="true">
+                    ...
+                  </span>
+                )
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="page-nav-btn"
+              disabled={currentPage >= totalPages - 1}
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 export function ConnectedPatientTabs({ id }: { id: number }) { return <nav className="view-tabs" aria-label="ข้อมูลผู้ป่วย"><Link href={`/doctor/patients/${id}`}>ข้อมูลส่วนตัว</Link><Link href={`/doctor/patients/${id}/assessments`}>ประวัติผล</Link><Link href={`/doctor/patients/${id}/plan`}>แผนการฝึก</Link></nav>; }
 export function DoctorPatientConnected({ data, templates, planOnly = false }: { data: PatientData; templates: Templates; planOnly?: boolean }) {

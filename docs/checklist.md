@@ -17,6 +17,9 @@ This overrides historical pending/mock-only statements below for connected Demo 
 
 | Feature | UI | API/DB | Current evidence |
 | --- | --- | --- | --- |
+| Doctor Patient Personal Info (Screen 1.1: `/doctor/patients/[id]`) | Passed | Passed | User approved on 2026-10-10; 5 patients seeded with full profiles, plans and sessions; Playwright verified at 1440px, 768px, 390px and dark theme |
+| Doctor Patient Assessment History (Screen 1.2: `/doctor/patients/[id]/assessments`) | Ready for review (รอตรวจ) | Passed | Implemented DoctorPatientAssessmentHistoryView matching Figma; exercise accuracies (75%, 60%, 30%), filter toolbar, 3 session cards; Playwright verified across desktop, tablet, mobile, and dark theme |
+| Doctor Patient Session Detail (Screen 1.2.1: `/doctor/patients/[id]/sessions/[sessionId]`) | Ready for review (รอตรวจ) | Passed | Implemented DoctorPatientSessionDetailView matching Figma Patient — Session Details.png; groups by Module, exercise KPI cards, per-set detail table with angles and time window, and dual metrics for actual vs form-correct reps; Playwright verified across desktop, tablet, mobile, and dark theme |
 | Custom-password Register/Login/Profile/Logout | Ready for review | Passed | Existing implementation retained; 58 auth regression checks passed again |
 | Patient template selection/daily snapshots/guide | Ready for review | Passed | Real ownership/Thai-day/retry/immutable target behavior retained |
 | Synthetic knee camera/counter/pause/continue/save/retry/reset/exit | Ready for review | Passed for Demo | New Demo-only DB-bound criteria; positive partial save/response-loss retry and PostgreSQL readback verified |
@@ -44,6 +47,11 @@ This overrides historical pending/mock-only statements below for connected Demo 
 - Account integration (2026-10-05): audited main/worktree and both Git commits; no alternate auth implementation exists. Added real custom-password Register/Login/Logout/Profile using the existing Prisma singleton/schema. Patient pages require database-verified sessions; role/owner checks run server-side. Passwords use scrypt, ID uses HMAC/encryption, cookies are HttpOnly. Initial-four-digit registration remains blocked pending policy approval; see `accounts-setup.md`.
 - Account acceptance: 58 browser/API assertions passed with two synthetic accounts, including persistent sessions/profile edits, ownership/role injection, duplicate registration, wrong password, CSRF, tampered cookies, password/session rotation, throttling and logout guards. Profile checked in 18 viewport/theme/font combinations; screenshots inspected. PostgreSQL aggregate checks confirm secure storage and catalog unchanged at 2 modules/5 exercises. TypeScript, full lint and build passed. Legacy UI-only auth expectations are historical, not current acceptance results. No schema/reset/commit/push.
 - Production cookie check: real built-server response on temporary port 3002 returned 200 with HttpOnly/Secure/SameSite=Lax; no account created, temporary server stopped, existing dev server retained on 3000. Required-password-change rendering does not serialize the patient's real profile or health fields.
+
+- Doctor Repetitions Split (2026-10-10): Updated Doctor Assessment History (`/doctor/patients/:id/assessments` - Screen 1.2) and Session Detail (`/doctor/patients/:id/sessions/:sessionId` - Screen 1.2.1) to clearly separate "ครั้งที่ทำได้จริง" (actual repetitions completed) from "ครั้งที่ทำได้ถูกต้อง ตาม form" (repetitions meeting clinical criteria), aligned with patient-side terminology and DBML `repetitions.is_correct`.
+  - Screen 1.2: Exercise progress cards show dual metric rows (`ครั้งที่ทำได้จริง: X / Y ครั้ง` and `ทำได้ถูกต้องตาม form: Z / X ครั้ง`), color-coded progress bars, and form accuracy badges; session round cards display summary badges for both actual reps and form-correct reps.
+  - Screen 1.2.1: Session detail header displays top KPI summary (actual reps vs target, form-correct reps, and form accuracy %); set headers include actual reps and form-correct reps badges; repetition table displays `✓ ถูกต้องตาม form` vs `✗ นอกเกณฑ์ form`.
+  - Verification: `npx tsc --noEmit` passed with 0 errors. Playwright automated verification passed across Desktop (1440px), Tablet (768px), Mobile (390px), and Dark Theme for both sample patients (Somchai HN-001 and Somying HN-002).
 
 - Birth-date calendars (2026-10-04): Added shared Gregorian/Buddhist normalization and age calculation in `src/lib/birth-date.ts`; native date inputs stay Gregorian regardless of displayed calendar, while non-native Buddhist dates require an explicit calendar argument. Registration validates impossible/future birth dates and retains normalized Gregorian draft values; Patient/Doctor sample ages reuse the same calculation with their existing reference date. No schema, migration, dependency, or database write was added.
 - Birth-date verification: 12 focused checks passed (4 calculation/date-boundary tests and 8 Chrome/WebKit locale tests at 390/820px); all 29 existing Register checks and the injected-autofill hydration check passed. TypeScript, focused ESLint and `git diff --check` passed. Mobile/iPad screenshots inspected without overflow. Tests await page network-idle before entering form values to avoid input before hydration. Physical OS date-picker presentation remains device review; locale emulation does not reproduce every native picker.
@@ -237,10 +245,10 @@ Patient screens prioritize mobile and iPad; Doctor screens prioritize desktop. B
 
 | Order | Route | Figma source | UI | API/DB | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `/doctor` | `Doctor Dashboard — Patient Overview` | Ready for review (รอตรวจ) | Not started | Desktop dashboard and patient search. |
-| 2 | `/doctor/patients/[patientId]` | `Patient — Personal Information` | Ready for review (รอตรวจ) | Not started | Patient profile and plan. |
-| 3 | `/doctor/patients/[patientId]/assessments` | `Patient — Assessment History` | Ready for review (รอตรวจ) | Not started | Assessment/progress history. |
-| 4 | `/doctor/patients/[patientId]/sessions/[sessionId]` | `Patient — Session Details` | Ready for review (รอตรวจ) | Not started | Session metrics and details. |
+| 1 | `/doctor` | `Doctor Dashboard — Patient Overview` | Ready for review (รอตรวจ) | Passed | Desktop dashboard, patient search, pagination with per-page stepper, filter, responsive navbar. |
+| 2 | `/doctor/patients/[patientId]` | `Patient — Personal Information` | Passed | Passed | Patient profile and plan. User approved on 2026-10-10. |
+| 3 | `/doctor/patients/[patientId]/assessments` | `Patient — Assessment History` | Ready for review (รอตรวจ) | Passed | Assessment/progress history, date range filter, module filter, dual metrics. |
+| 4 | `/doctor/patients/[patientId]/sessions/[sessionId]` | `Patient — Session Details` | Ready for review (รอตรวจ) | Passed | Session metrics, module groupings, set tables, peak angles, and dual reps breakdown. |
 
 ## API / Database
 

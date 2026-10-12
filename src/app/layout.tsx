@@ -24,8 +24,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const initialSize = parseFontSize(preferences.get(fontSizeCookie)?.value);
   const initialTheme = parseTheme(preferences.get(themeCookie)?.value);
   return (
-    <html lang="th" data-size={initialSize} data-theme={initialTheme} className="h-full antialiased">
-      <body className="min-h-full flex flex-col"><DisplaySettingsProvider initialSize={initialSize} initialTheme={initialTheme}><DemoProvider>{children}</DemoProvider></DisplaySettingsProvider></body>
+    <html lang="th" data-size={initialSize} data-theme={initialTheme} className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning><DisplaySettingsProvider initialSize={initialSize} initialTheme={initialTheme}><DemoProvider>{children}</DemoProvider></DisplaySettingsProvider></body>
     </html>
   );
 }

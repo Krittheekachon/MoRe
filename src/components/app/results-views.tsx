@@ -28,13 +28,152 @@ export function ResultsHistory({ sessions, base = "/patient", date: initialDate 
       return <Link key={day} href={`/patient/progress/calendar/${day}`} aria-label={`${day} ${count} เซต`}><b>{index + 1}</b><small>{count ? `${count} เซต` : "-"}</small></Link>;
     })}</div></>}
     <p className="muted">แสดงเฉพาะเซตที่บันทึกแล้ว · วันตาม Asia/Bangkok · สูงสุด 200 รอบการฝึกล่าสุด</p>
-    {!displayed.length ? <EmptyState title="ยังไม่มีผลที่บันทึก" /> : <div className="exercise-list">{displayed.map(session => <article className="exercise-row" key={session.id}><div><h2>{session.exercise}</h2><p>{session.date} · {session.sets.length} เซต · {session.sets.reduce((sum, set) => sum + set.repetitions.length, 0)} ครั้ง</p>{groups(session).map(group => <p key={group.label}>{group.label} · MAX {Math.max(...group.values).toFixed(2)}° · AVG {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°</p>)}</div><Link className="command" href={`${base}/sessions/${session.id}`}>รายละเอียดผล</Link></article>)}</div>}
+    {!displayed.length ? (
+      <EmptyState title="ยังไม่มีผลที่บันทึก" />
+    ) : (
+      <div className="exercise-list">
+        {displayed.map((session) => {
+          const actualCount = session.sets.reduce((sum, set) => sum + set.repetitions.length, 0);
+          const correctCount = session.sets.reduce(
+            (sum, set) => sum + set.repetitions.filter((r) => r.correct).length,
+            0
+          );
+          return (
+            <article className="exercise-row" key={session.id}>
+              <div>
+                <h2>{session.exercise}</h2>
+                <p>
+                  {session.date} · {session.sets.length} เซต · ทำได้จริง {actualCount} ครั้ง (ถูกต้องตาม form {correctCount} ครั้ง)
+                </p>
+                {groups(session).map((group) => (
+                  <p key={group.label}>
+                    {group.label} · MAX {Math.max(...group.values).toFixed(2)}° · AVG{" "}
+                    {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°
+                  </p>
+                ))}
+              </div>
+              <Link className="command" href={`${base}/sessions/${session.id}`}>
+                รายละเอียดผล
+              </Link>
+            </article>
+          );
+        })}
+      </div>
+    )}
   </>;
 }
 export function ResultDetail({ session, back }: { session: ResultSession; back: string }) {
-  return <><PageHeading title={session.exercise} subtitle={session.date} back={back} />{session.code.startsWith("demo-") && <p className="notice">DEMO สังเคราะห์ · ไม่ใช่ผลประเมินทางคลินิก</p>}
-    {groups(session).map(group => <p key={group.label}><strong>{group.label}</strong> · MAX {Math.max(...group.values).toFixed(2)}° · AVG {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°</p>)}
-    {session.sets.map(set => <section className="results-set" key={set.id}><h2>เซต {set.number}: {set.repetitions.length} / {set.target} ครั้ง</h2><p>{set.elapsed ?? 0} วินาที · บันทึก {set.savedAt ? new Date(set.savedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}</p>
-      {!set.repetitions.length ? <p>บันทึกเซตโดยไม่มีรอบที่ทำครบ</p> : <div className="table-scroll"><table><thead><tr><th>ครั้ง</th><th>ข้าง</th><th>ตัวชี้วัด</th><th>เริ่ม</th><th>สูงสุด</th><th>กลับ</th><th>เกณฑ์</th><th>จุดตรวจ</th></tr></thead><tbody>{set.repetitions.flatMap(rep => rep.metrics.map(metric => <tr key={`${rep.number}:${metric.metricId}`}><td>{rep.number}</td><td>{rep.side === "left" ? "ซ้าย" : "ขวา"}</td><td>{metric.label} v{metric.definitionVersion}</td><td>{metric.start?.toFixed(2) ?? "-"}°</td><td>{metric.peak.toFixed(2)}°</td><td>{metric.end?.toFixed(2) ?? "-"}°</td><td>v{rep.criteriaVersion} · {rep.correct ? "เข้าเกณฑ์" : "นอกเกณฑ์"}{session.code.startsWith("demo-") && " Demo"}</td><td>{rep.checkpoints.map(check => `${check.phase}: ${check.value?.toFixed(2) ?? "-"} (${check.passed ? "ผ่าน" : "ไม่ผ่าน"})`).join(" / ")}</td></tr>))}</tbody></table></div>}</section>)}
-  </>;
+  const totalActual = session.sets.reduce((sum, set) => sum + set.repetitions.length, 0);
+  const totalTarget = session.sets.reduce((sum, set) => sum + set.target, 0);
+  const totalCorrect = session.sets.reduce(
+    (sum, set) => sum + set.repetitions.filter((r) => r.correct).length,
+    0
+  );
+  const sessionAccuracy = totalActual > 0 ? Math.round((totalCorrect / totalActual) * 100) : 0;
+
+  return (
+    <>
+      <PageHeading title={session.exercise} subtitle={session.date} back={back} />
+      {session.code.startsWith("demo-") && <p className="notice">DEMO สังเคราะห์ · ไม่ใช่ผลประเมินทางคลินิก</p>}
+
+      <section className="summary-band session-detail-summary" aria-label="สรุปจำนวนครั้งในรอบนี้">
+        <div>
+          <strong className="summary-val">{totalActual} <small>/ {totalTarget} ครั้ง</small></strong>
+          <p className="summary-lbl">ครั้งที่ทำได้จริง</p>
+        </div>
+        <div>
+          <strong className="summary-val correct-highlight">{totalCorrect} <small>/ {totalActual} ครั้ง</small></strong>
+          <p className="summary-lbl">ทำได้ถูกต้องตาม form</p>
+        </div>
+        <div>
+          <strong className="summary-val">{sessionAccuracy}%</strong>
+          <p className="summary-lbl">ความถูกต้องตาม form</p>
+        </div>
+      </section>
+
+      {groups(session).map((group) => (
+        <p key={group.label}>
+          <strong>{group.label}</strong> · MAX {Math.max(...group.values).toFixed(2)}° · AVG{" "}
+          {(group.values.reduce((sum, value) => sum + value, 0) / group.values.length).toFixed(2)}°
+        </p>
+      ))}
+
+      {session.sets.map((set) => {
+        const setCorrect = set.repetitions.filter((r) => r.correct).length;
+        const setAccuracy = set.repetitions.length > 0 ? Math.round((setCorrect / set.repetitions.length) * 100) : 0;
+
+        return (
+          <section className="results-set" key={set.id}>
+            <div className="results-set-title-row">
+              <h2>เซต {set.number}</h2>
+              <div className="set-metrics-pills">
+                <span className="set-metric-badge actual">
+                  ครั้งที่ทำได้จริง: <strong>{set.repetitions.length}</strong> / {set.target} ครั้ง
+                </span>
+                <span className="set-metric-badge correct">
+                  ถูกต้องตาม form: <strong>{setCorrect}</strong> / {set.repetitions.length} ครั้ง ({setAccuracy}%)
+                </span>
+              </div>
+            </div>
+            <p>
+              {set.elapsed ?? 0} วินาที · บันทึก{" "}
+              {set.savedAt ? new Date(set.savedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}
+            </p>
+            {!set.repetitions.length ? (
+              <p>บันทึกเซตโดยไม่มีรอบที่ทำครบ</p>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ครั้ง</th>
+                      <th>ข้าง</th>
+                      <th>ตัวชี้วัด</th>
+                      <th>เริ่ม</th>
+                      <th>สูงสุด</th>
+                      <th>กลับ</th>
+                      <th>เกณฑ์ form</th>
+                      <th>จุดตรวจ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {set.repetitions.flatMap((rep) =>
+                      rep.metrics.map((metric) => (
+                        <tr key={`${rep.number}:${metric.metricId}`}>
+                          <td>{rep.number}</td>
+                          <td>{rep.side === "left" ? "ซ้าย" : "ขวา"}</td>
+                          <td>
+                            {metric.label} v{metric.definitionVersion}
+                          </td>
+                          <td>{metric.start?.toFixed(2) ?? "-"}°</td>
+                          <td>{metric.peak.toFixed(2)}°</td>
+                          <td>{metric.end?.toFixed(2) ?? "-"}°</td>
+                          <td>
+                            <span className={rep.correct ? "form-passed-badge" : "form-failed-badge"}>
+                              {rep.correct ? "✓ ถูกต้องตาม form" : "✗ นอกเกณฑ์ form"}
+                            </span>
+                            {session.code.startsWith("demo-") && " Demo"}
+                          </td>
+                          <td>
+                            {rep.checkpoints
+                              .map(
+                                (check) =>
+                                  `${check.phase}: ${check.value?.toFixed(2) ?? "-"} (${
+                                    check.passed ? "ผ่าน" : "ไม่ผ่าน"
+                                  })`
+                              )
+                              .join(" / ")}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </>
+  );
 }
