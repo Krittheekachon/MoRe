@@ -4,7 +4,7 @@ async sessionPage => {
  const page=await context.newPage();const origin="https://localhost:3000";let checks=0;
  const check=(value,label)=>{if(!value)throw Error(label);checks++;};
  const errors=[];page.on("console",m=>{if(m.type()==="error"&&m.text().includes("hydr"))errors.push(m.text());});page.on("pageerror",e=>errors.push(e.message));
- const global=["ready_for_countdown","move_into_camera_view",...Array.from({length:20},(_,i)=>`rep_count_${String(i+1).padStart(2,"0")}`)];
+ const global=["camera-ankle","ready_for_countdown","move_into_camera_view",...Array.from({length:20},(_,i)=>`rep_count_${String(i+1).padStart(2,"0")}`)];
  const knee=["exercise_intro","adjust_camera_position","improve_tracking_visibility","correct_seated_posture","turn_side_to_camera","encourage_knee_extension"];
  for(const voice of ["male","female"])for(const [folder,names] of [["global",global],["seated-knee-extension",knee]])for(const name of names){check((await context.request.get(`${origin}/audio/more-${voice}/${folder}/${name}.mp3`)).ok(),"MP3 HTTP path");}
  check((await context.request.get(origin+"/audio/shared/Whistle Sound Effect Ringtone.mp3")).ok(),"whistle path");

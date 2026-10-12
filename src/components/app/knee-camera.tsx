@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Info, LogOut, Pause, Play, RotateCcw, Save } from "lucide-react";
 import { DisplaySettings, useTrainingAudioSettings } from "./display-settings";
-import { KneeAudio } from "@/lib/audio/knee-audio";
+import { KneeAudio, selectedAnkleUnclear } from "@/lib/audio/knee-audio";
 import { LogoutButton } from "./logout-button";
 import { KneeExerciseInstructions } from "./knee-exercise-guide";
 import { type DailyTrainingItem } from "@/lib/training-types";
@@ -156,6 +156,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
             const ready = sound.updatePreparation(preparingAllowed, result.at, definition.maxGapMs, {
               message: !trusted && result.points.length ? "จุดวัดไม่ชัด" : view.message,
               missing: !result.points.length,
+              ankleUnclear: selectedAnkleUnclear(result.points, definition),
             });
             if (!ready) view = { ...view, allowed: false, ready: false,
               countdownRemaining: preparingAllowed ? sound.remaining ?? undefined : undefined,
@@ -174,7 +175,8 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       feedbackStatus = overlay.current.feedback.update(feedbackAllowed ? angle : null, result.at, confidence, counter.movement);
       const lastCompleted = counter.repetitions.at(-1);
       if (audioSupported && !sound.paused) {
-        if (!feedbackAllowed || !counting) sound.guidance(!trusted && result.points.length ? "จุดวัดไม่ชัด" : view?.message ?? "", !result.points.length);
+        if (!selectedAnkleUnclear(result.points, definition)) sound.player.cancel("ankle");
+        if (!feedbackAllowed || !counting) sound.guidance(!trusted && result.points.length ? "จุดวัดไม่ชัด" : view?.message ?? "", !result.points.length, selectedAnkleUnclear(result.points, definition));
         if (counting) sound.movement(counter.repetitions.length, counter.movement.phase === "moving", feedbackAllowed && trusted, angle, definition.correctPeak.min, result.at);
       }
       if (developer && refreshView) setDebugView({ preparation: preparation.current?.gate.debug ?? null, counter: counter.debug,

@@ -1,5 +1,15 @@
+import { pointConfidence } from "../pose/cycle";
+import type { PoseCriteria, PosePoint } from "../pose/types";
 import { audioConfig, type AudioEvent } from "./catalog";
 import { TrainingAudioController } from "./controller";
+// Selected raw ankle only; never use held coordinates or require the far leg.
+export function selectedAnkleUnclear(points: PosePoint[], criteria: PoseCriteria) {
+  if (!points.length) return false;
+  const ankle = points[criteria.landmarks[2]];
+  return !ankle || ![ankle.x, ankle.y, ankle.z].every(Number.isFinite)
+    || ankle.x < 0 || ankle.x > 1 || ankle.y < 0 || ankle.y > 1
+    || pointConfidence(ankle) < criteria.minVisibility;
+}
 /** Presentation adapter only: consumes accepted preparation/counter snapshots. */
 export class KneeAudio {
   remaining: number | null = null;
@@ -22,14 +32,14 @@ export class KneeAudio {
     this.player.clearGuidanceCooldown();
     this.setPaused(!cameraReady);
   }
-  updatePreparation(allowed: boolean, at: number, gap: number, issue?: { message: string; missing: boolean }) {
+  updatePreparation(allowed: boolean, at: number, gap: number, issue?: { message: string; missing: boolean; ankleUnclear?: boolean }) {
     this.latestAt = at; this.valid = allowed;
     // Audio completion never overrides the current engine's permission.
     if (this.ready) return allowed;
     if (!allowed) {
       if (this.preparing) {
         this.reset(); // Cancel numbers/whistle before playing the corrective MP3.
-        this.guidance(issue?.message || "งอเข่ากลับสู่ท่าเริ่มต้น", issue?.missing ?? false);
+        this.guidance(issue?.message || "งอเข่ากลับสู่ท่าเริ่มต้น", issue?.missing ?? false, issue?.ankleUnclear ?? false);
       }
       return false;
     }
@@ -55,9 +65,9 @@ export class KneeAudio {
     }
     return false;
   }
-  guidance(message: string, missing: boolean) {
+  guidance(message: string, missing: boolean, ankleUnclear = false) {
     if (this.preparing) return;
-    const event: AudioEvent | null = missing ? "missing" : message.includes("หันข้าง") ? "side" : message.includes("มุมลำตัว") || message.includes("หลังตรง") || message.includes("งอเข่า") || message.includes("ท่าเริ่มต้น") ? "posture" : message.includes("ไม่ชัด") ? "visibility" : message.includes("ให้กล้องเห็น") ? "camera" : null;
+    const event: AudioEvent | null = missing ? "missing" : ankleUnclear ? "ankle" : message.includes("หันข้าง") ? "side" : message.includes("มุมลำตัว") || message.includes("หลังตรง") || message.includes("งอเข่า") || message.includes("ท่าเริ่มต้น") ? "posture" : message.includes("ไม่ชัด") ? "visibility" : message.includes("ให้กล้องเห็น") ? "camera" : null;
     if (!event) { this.player.cancelGuidance(); return; }
     void this.player.play(event);
   }

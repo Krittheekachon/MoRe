@@ -27,6 +27,7 @@ Paths เริ่ม `/audio/more-male/` หรือ `/audio/more-female/` ต
 | Event | ไฟล์ต่อจาก base | เล่น/ยกเลิก |
 |---|---|---|
 | intro | `seated-knee-extension/exercise_intro.mp3` | หลังเปิด stream จาก gesture สำเร็จ ครั้งเดียวต่อการเปิด; หยุดเมื่อพัก/ปิด/ออก/เปลี่ยน voice |
+| ankle | `global/camera-ankle.mp3` | Selected raw ankle missing, out of frame or below existing visibility/presence threshold; whole-body loss uses missing. Existing 5s cooldown/cancellation applies. |
 | missing | `global/move_into_camera_view.mp3` | ไม่พบ landmarks; ข้อความจริงหนึ่งปัญหาต่อครั้ง |
 | camera | `seated-knee-extension/adjust_camera_position.mp3` | gate แจ้งให้กล้องเห็นจุดวัด |
 | visibility | `seated-knee-extension/improve_tracking_visibility.mp3` | ข้อความจุดไม่ชัด |
