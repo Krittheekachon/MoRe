@@ -1,12 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app/shell";
 import { DoctorPatientList, DoctorPatientConnected, DoctorTemplateEditor, ConnectedPatientTabs } from "@/components/app/doctor-connected";
+import { DoctorPatientProfileView } from "@/components/app/doctor-patient-profile";
+import { DoctorPatientAssessmentHistoryView } from "@/components/app/doctor-patient-assessments";
+import { DoctorPatientSessionDetailView } from "@/components/app/doctor-patient-session-detail";
 import { ResultsHistory, ResultDetail } from "@/components/app/results-views";
 import { staffIdentity, staffPatients, staffPatientData, staffTemplates, staffCatalog } from "@/lib/doctor-service";
 import { readResults } from "@/lib/results-service";
 import { AccountError } from "@/lib/account-validation";
 import { trainingId } from "@/lib/training-api";
 import { TrainingFailure } from "@/components/app/training-failure";
+import { calculateAge } from "@/lib/birth-date";
 
 export const metadata = { title: "แพทย์และนักกายภาพ | MoRe" };
 export default async function DoctorPage({ params }: { params: Promise<{ segments?: string[] }> }) {
@@ -33,10 +37,48 @@ export default async function DoctorPage({ params }: { params: Promise<{ segment
     failed = true;
   }
   if (failed) content = <TrainingFailure message="โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่" title="ข้อมูลบุคลากร" back="/doctor" />;
-  else if (!path) content = <DoctorPatientList patients={patients.map(profile => ({ patient_id: profile.patient_id, full_name: profile.full_name, hn: profile.hn, sex: profile.sex, birthDate: profile.date_of_birth?.toISOString().slice(0, 10) ?? null }))} />;
+  else if (!path) {
+    const mappedPatients = patients.map(profile => {
+      const totalSessions = profile.days.reduce(
+        (acc, day) => acc + day.dailyExercises.reduce((sum, de) => sum + de.sessions.length, 0),
+        0
+      );
+      let latestDate: Date | null = null;
+      for (const day of profile.days) {
+        if (day.last_activity_at && (!latestDate || day.last_activity_at > latestDate)) {
+          latestDate = day.last_activity_at;
+        }
+        for (const de of day.dailyExercises) {
+          for (const s of de.sessions) {
+            if (!latestDate || s.started_at > latestDate) {
+              latestDate = s.started_at;
+            }
+          }
+        }
+      }
+      latestDate ??= profile.updated_at;
+
+      const birthDateStr = profile.date_of_birth?.toISOString().slice(0, 10) ?? null;
+      const age = birthDateStr ? calculateAge(birthDateStr) : null;
+
+      return {
+        patient_id: profile.patient_id,
+        hn: profile.hn,
+        full_name: profile.full_name,
+        sex: profile.sex,
+        birthDate: birthDateStr,
+        age,
+        phone: profile.phone,
+        sessionCount: totalSessions,
+        lastUpdated: latestDate ? latestDate.toISOString() : null,
+      };
+    });
+    content = <DoctorPatientList patients={mappedPatients} />;
+  }
   else if (path === "templates") content = <DoctorTemplateEditor templates={templates} catalog={catalog} />;
-  else if (data && session) content = <><ConnectedPatientTabs id={data.profile.patient_id} /><ResultDetail session={session} back={`/doctor/patients/${data.profile.patient_id}/assessments`} /></>;
-  else if (data && segments[2] === "assessments") content = <><ConnectedPatientTabs id={data.profile.patient_id} /><ResultsHistory sessions={data.sessions} base={`/doctor/patients/${data.profile.patient_id}`} /></>;
+  else if (data && session) content = <DoctorPatientSessionDetailView data={data} sessionId={trainingId(segments[3])} />;
+  else if (data && segments[2] === "assessments") content = <DoctorPatientAssessmentHistoryView data={data} />;
+  else if (data && segments.length === 2) content = <DoctorPatientProfileView data={data} />;
   else if (data) content = <DoctorPatientConnected key={`${data.profile.patient_id}:${segments[2] || "profile"}`} data={data} templates={templates} planOnly={segments[2] === "plan"} />;
   return <AppShell doctor demo={staff.demo}>{staff.demo && <p className="notice">DEMO สังเคราะห์ · แสดงเฉพาะบัญชีและแผนทดลอง ไม่ใช่ข้อมูลคนไข้จริง</p>}{content}</AppShell>;
 }

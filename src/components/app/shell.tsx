@@ -1,6 +1,7 @@
 "use client";
 
 import { MoreLogo } from "@/components/ui/more-logo";
+import { DoctorShell } from "./doctor-shell";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, ArrowLeft, Settings, X } from "lucide-react";
@@ -10,7 +11,7 @@ import { LogoutButton } from "./logout-button";
 import type { PatientProfile } from "@/lib/demo-data";
 import { NavDebug } from "./nav-debug";
 
-export function AppShell({ children, doctor = false, patientProfile, demo = false }: { children: ReactNode; doctor?: boolean; patientProfile?: PatientProfile; demo?: boolean }) {
+function PatientShell({ children, doctor = false, patientProfile, demo = false }: { children: ReactNode; doctor?: boolean; patientProfile?: PatientProfile; demo?: boolean }) {
   const path = usePathname();
   const cameraPage = /\/exercises\/[^/]+\/camera$/.test(path);
   const { profiles } = useDemo();
@@ -57,4 +58,8 @@ export function PageHeading({ title, subtitle, back, backLabel = "กลับ",
 }
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return <div className="empty-state"><ClipboardList size={32} aria-hidden="true" /><h2>{title}</h2>{children}</div>;
+}
+
+export function AppShell(props: Parameters<typeof PatientShell>[0]) {
+  return props.doctor ? <DoctorShell {...props} /> : <PatientShell {...props} />;
 }

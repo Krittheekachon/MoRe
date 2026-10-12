@@ -26,8 +26,33 @@ export async function staffPatient(staff: Staff, patientId: number) {
 }
 export async function staffPatients(staff: Staff) {
   const ids = (await demoManifest())?.patients.map(patient => patient.id) ?? [];
-  return prisma.patientProfile.findMany({ where: { patient_id: staff.demo ? { in: ids } : { notIn: ids }, user: { role: "patient", is_active: true } }, orderBy: { full_name: "asc" }, take: 500,
-    select: { patient_id: true, hn: true, full_name: true, sex: true, date_of_birth: true } });
+  return prisma.patientProfile.findMany({
+    where: { patient_id: staff.demo ? { in: ids } : { notIn: ids }, user: { role: "patient", is_active: true } },
+    orderBy: { full_name: "asc" },
+    take: 500,
+    select: {
+      patient_id: true,
+      hn: true,
+      full_name: true,
+      sex: true,
+      date_of_birth: true,
+      phone: true,
+      updated_at: true,
+      days: {
+        select: {
+          last_activity_at: true,
+          dailyExercises: {
+            select: {
+              sessions: {
+                where: { sets: { some: { status: "saved" } } },
+                select: { id: true, started_at: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 }
 export async function staffTemplates(staff: Staff) {
   return prisma.rehabilitationTemplate.findMany({ where: { is_active: true, ...(staff.demo ? { created_by: staff.id, template_code: { startsWith: "DEMO-" } } : { NOT: { template_code: { startsWith: "DEMO-" } }, exercises: { none: { exercise: { code: demoExerciseCode } } } }) }, orderBy: { id: "desc" }, include: { exercises: { include: { weekdays: true, exercise: { select: { name_th: true } } } } } });
