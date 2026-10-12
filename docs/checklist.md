@@ -515,3 +515,5 @@ Focused shell lint, TypeScript typecheck and git diff --check passed. No product
 - Mock v7: correct knee 155–180°, retained torso 80–115°; six PostgreSQL checkpoints synchronized. Readiness 317, preparation 87, engine 18, TypeScript/lint pass; physical camera unverified.
 
 - Patient progress chart/history: first recorded date starts left (including one-day data); all saved dates available as actual daily-ID detail links beyond the chart range. PostgreSQL 44 and Chromium 119 checks pass across 24 responsive/theme/font combinations, zero hydration warnings; TypeScript/targeted lint pass. Physical iPad remains unverified.
+
+- 2026-10-12 ankle audio: existing male/female global/camera-ankle.mp3 connected to selected raw ankle quality via existing confidence threshold. Whole-body absence keeps missing cue; far ankle never blocks. Existing 5s cooldown, countdown cancellation and single player retained; cancel cue on ankle recovery. Audio 112/engine 18 checks passed; physical iPad/camera speech verification pending. No counting/DB changes.
