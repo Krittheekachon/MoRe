@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Info, LogOut, Pause, Play, RotateCcw, Save } from "lucide-react";
-import { DisplaySettings } from "./display-settings";
+import { DisplaySettings, useTrainingAudioSettings } from "./display-settings";
+import { KneeAudio } from "@/lib/audio/knee-audio";
 import { LogoutButton } from "./logout-button";
 import { KneeExerciseInstructions } from "./knee-exercise-guide";
 import { type DailyTrainingItem } from "@/lib/training-types";
@@ -31,6 +32,10 @@ async function request<T>(url: string, method: string, body?: unknown): Promise<
 export const KneeCamera = PoseCamera; // Compatibility for existing imports.
 export function PoseCamera({ assignment, approvalAvailable, demo = false, cameraTest = false, developer = false }: { assignment: DailyTrainingItem; approvalAvailable: boolean; demo?: boolean; cameraTest?: boolean; developer?: boolean }) {
   const router = useRouter();
+  const { audioEnabled, voice } = useTrainingAudioSettings();
+  const [sound] = useState(() => new KneeAudio());
+  const audioSupported = assignment.exercise.code === "demo-knee-extension";
+  useEffect(() => { sound.reset(); sound.player.configure(audioEnabled && audioSupported, voice); }, [sound, audioEnabled, voice, audioSupported]);
   const [side, setSide] = useState(assignment.side === "left" || assignment.side === "right" ? assignment.side : "");
   const [camera, setCamera] = useState(false); const [opening, setOpening] = useState(false);
 
@@ -83,13 +88,15 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
   const slot = useRef<RecordingSlot | null>(null); const frozen = useRef<SaveSetInput | null>(null);
   const elapsedSeconds = useCallback(() => Math.floor((elapsed.current + (activeSince.current === null ? 0 : performance.now() - activeSince.current)) / 1000), []);
   const pauseLocally = useCallback(() => {
+    sound.setPaused(true);
+    sound.reset();
     simulationGeneration.current++;
     if (activeSince.current !== null) elapsed.current += performance.now() - activeSince.current;
     activeSince.current = null; active.current = false; cycle.current?.interrupt();
     trackingQuality.current.reset(); filters.image.reset(); filters.world.reset(); preparation.current = null;
     overlay.current = null;
     if (mounted.current) { setRunning(false); setPaused(!!slot.current); setSeconds(elapsedSeconds()); }
-  }, [elapsedSeconds, filters]);
+  }, [elapsedSeconds, filters, sound]);
   const closeCamera = useCallback(() => {
     generation.current++; pauseLocally(); runtime.current?.dispose(); runtime.current = null;
     stream.current?.getTracks().forEach(track => track.stop()); stream.current = null;
@@ -102,6 +109,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
   }, [pauseLocally]);
   function chooseSide(value: Side) {
     if (value === side) return;
+    sound.reset(0);
     setSide(value); cycle.current?.interrupt(); overlay.current = null; preparation.current = null;
     trackingQuality.current.reset(); filters.image.reset(); filters.world.reset();
     measurement.current = null; setDefinition(null); setCurrentAngle(null); setPreparationView(null); setLandmarkTracking([]);
@@ -143,9 +151,20 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
         view = preparation.current.gate.update(displayPoints, definition, result.width, result.height, result.at, trusted, counter.movement);
         feedbackAllowed = view.allowed;
         if (counting) {
+          if (audioSupported) {
+            const preparingAllowed = view.allowed && trusted && angle !== null;
+            const ready = sound.updatePreparation(preparingAllowed, result.at, definition.maxGapMs, {
+              message: !trusted && result.points.length ? "จุดวัดไม่ชัด" : view.message,
+              missing: !result.points.length,
+            });
+            if (!ready) view = { ...view, allowed: false, ready: false,
+              countdownRemaining: preparingAllowed ? sound.remaining ?? undefined : undefined,
+              message: !preparingAllowed ? view.message : sound.remaining === null ? "เตรียมเริ่ม · ค้างท่าเตรียมไว้" : `เตรียมเริ่มใน ${sound.remaining} · ค้างท่าเตรียมไว้` };
+          } else {
           const countdown = preparation.current.countdown.update(view.allowed, result.at, definition.maxGapMs);
           if (countdown.remaining !== null) view = { ...view, allowed: false, countdownRemaining: countdown.remaining, message: `เตรียมเริ่มใน ${countdown.remaining} · ค้างท่าเตรียมไว้` };
           else if (!countdown.allowed) view = { ...view, allowed: false };
+          }
         }
         framePreparation = view;
         allowed = view.allowed;
@@ -154,6 +173,10 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       if (allowed) counter.sample(angle, result.at, confidence); // Preview only when not actively counting.
       feedbackStatus = overlay.current.feedback.update(feedbackAllowed ? angle : null, result.at, confidence, counter.movement);
       const lastCompleted = counter.repetitions.at(-1);
+      if (audioSupported && !sound.paused) {
+        if (!feedbackAllowed || !counting) sound.guidance(!trusted && result.points.length ? "จุดวัดไม่ชัด" : view?.message ?? "", !result.points.length);
+        if (counting) sound.movement(counter.repetitions.length, counter.movement.phase === "moving", feedbackAllowed && trusted, angle, definition.correctPeak.min, result.at);
+      }
       if (developer && refreshView) setDebugView({ preparation: preparation.current?.gate.debug ?? null, counter: counter.debug,
         lastCompleted: lastCompleted ? { peak: Number(lastCompleted.peakAngle.toFixed(2)), correct: engine.correct({ ...lastCompleted, peakAngle: Number(lastCompleted.peakAngle.toFixed(2)) }, definition) } : null,
         rawKnee: jointAngle(result.points, definition, result.width, result.height),
@@ -200,7 +223,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
           const imageTop = rect ? rect.top + (rect.height - output.height * scale) / 2 : 0;
           const safeArea = { top: Math.max(0, header ? (header.bottom - imageTop) / scale : 0), bottom: Math.min(output.height, card ? (card.top - imageTop) / scale : output.height) };
           const shown = framePreparation;
-          if (developer && developerOverlay.current.angles) drawMeasurementLabels(context, displayPoints, output.width, output.height, definition, trusted, shown, !(cycle.current?.movement.phase === "moving"), safeArea);
+          if (!developer || developerOverlay.current.angles) drawMeasurementLabels(context, displayPoints, output.width, output.height, definition, trusted, shown, !(cycle.current?.movement.phase === "moving"), safeArea);
           if (refreshView || shown?.knee === null || shown?.torso === null) {
             setPreparationView(previous => previous?.message === shown?.message && previous?.ready === shown?.ready && previous?.countdownRemaining === shown?.countdownRemaining && previous?.knee === shown?.knee && previous?.torso === shown?.torso ? previous : shown);
             lastViewAt.current = result.at;
@@ -227,6 +250,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     return () => { abandon(); mounted.current = false; clearInterval(timer); window.removeEventListener("pagehide", abandon); document.removeEventListener("visibilitychange", visibility); closeCamera(); };
   }, [closeCamera, elapsedSeconds, pauseLocally, developer]);
   async function openCamera() {
+    if (audioSupported) void sound.player.unlock();
     if (opening || stream.current) return;
     const attempt = ++generation.current; setOpening(true); setError("");
     try {
@@ -253,11 +277,14 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       }
       runtime.current = openPoseRuntime(video.current!, frame, status => { if (!mounted.current) return; setModelStatus(status); if (status === "error") { pauseLocally(); setError("โหลดหรือประมวลผลการตรวจท่าไม่ได้ กรุณาปิดกล้องแล้วลองใหม่"); } });
       acquired.getVideoTracks()[0].onended = closeCamera;
+      sound.setPaused(false);
+      if (audioSupported) void sound.player.play("intro", 3);
     } catch (cause) {
       if (generation.current === attempt) { closeCamera(); if (mounted.current) setError(cause instanceof Error && cause.message === "CAMERA_HTTPS" ? "กล้องต้องใช้ HTTPS หรือ localhost บนมือถือ/iPad ให้เปิด URL HTTPS ที่เชื่อถือใบรับรองแล้ว" : cause instanceof DOMException && cause.name === "NotAllowedError" ? "ไม่ได้รับสิทธิ์กล้อง กรุณาอนุญาตกล้องใน browser" : cause instanceof DOMException && cause.name === "NotFoundError" ? "ไม่พบกล้อง กรุณาตรวจอุปกรณ์กล้อง" : cause instanceof DOMException && cause.name === "NotReadableError" ? "กล้องถูกใช้งานหรือเปิดไม่ได้ กรุณาปิดแอปอื่นที่ใช้กล้อง" : cause instanceof Error ? cause.message : "เปิดกล้องไม่ได้ กรุณาตรวจอุปกรณ์และลองใหม่"); }
     } finally { if (mounted.current) setOpening(false); }
   }
   async function toggle() {
+    if (audioSupported) void sound.player.unlock();
     if (pending.current || frozen.current) return;
     if (active.current) {
       pauseLocally(); pending.current = true; setBusy(true);
@@ -280,6 +307,8 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       if (!mounted.current || document.hidden || (!simulated.current && !stream.current)) return;
       setHasSlot(true);
       preparation.current = null;
+      sound.reset(cycle.current?.repetitions.length ?? 0);
+      sound.setPaused(false);
       active.current = true; activeSince.current = performance.now(); setPaused(false); setRunning(true);
     } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : "เริ่มฝึกไม่ได้"); }
     finally { pending.current = false; if (mounted.current) setBusy(false); }
@@ -325,6 +354,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       measurement.current = exit ? null : previewCriteria; setDefinition(measurement.current); setCurrentAngle(null);
       overlay.current = null; setDebugView(null); setDeveloperView(null); developerFrameAt.current = null;
       preparation.current = null; setPreparationView(null); lastViewAt.current = -Infinity;
+      if (!exit) sound.resetForNewSet(!!stream.current);
       if (exit) { closeCamera(); router.push(developer ? "/developer" : "/patient/exercises"); }
     } catch { setError("ยกเลิกเซตไม่สำเร็จ ผลที่ยังไม่บันทึกยังอยู่ กรุณาลองใหม่"); }
     finally { pending.current = false; if (mounted.current) setBusy(false); }
@@ -341,7 +371,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       {side ? <div className="pose-side-control"><span>ข้างที่ฝึก</span><strong className="pose-side-value">{side === "left" ? "ซ้าย" : "ขวา"}</strong></div> : <div className="pose-side-control" role="group" aria-label="เลือกข้างก่อนเริ่มฝึก"><span>เลือกข้างก่อนเริ่มฝึก</span><div className="pose-side-buttons">{(["left", "right"] as const).map(value => <button key={value} type="button" disabled={running || paused || busy || saveUncertain} onClick={() => chooseSide(value)}>{value === "left" ? "ซ้าย" : "ขวา"}</button>)}</div></div>}
       <section className="camera-summary"><div><strong>{reps} / {assignment.targetReps}</strong><p>ครั้งในเซตนี้</p></div><div><strong>{correctReps}</strong><p>ครั้งที่ทำถูก{developer ? " (ทดสอบ)" : ""}</p></div></section>
       </div><div className="pose-secondary-scroll"><div className="pose-session-status">{!developer && <p>เวลาฝึก {seconds} วินาที</p>}{developer && <p>มุมปัจจุบัน: {currentAngle === null ? "—" : `${currentAngle.toFixed(1)}°`}{definition && <> · เป้าหมาย {definition.correctPeak.min}–{definition.correctPeak.max}°</>} · {seconds} วินาที</p>}<p role="status">{opening ? "กำลังเปิดกล้อง" : modelStatus === "loading" ? "กำลังเตรียมระบบตรวจท่า" : modelStatus === "error" ? "การตรวจท่าไม่พร้อมใช้งาน" : `${modelStatus === "ready" ? "กล้องพร้อม · " : ""}${tracking}`}</p>{!approvalAvailable && <p className="notice">เกณฑ์ท่านี้ยังไม่ยืนยัน เปิดกล้องได้ แต่ยังไม่นับหรือบันทึกผล</p>}{error && <p className="error-text" role="alert">{error}</p>}</div>
-      {developer && <section className="developer-controls"><LogoutButton /><p>Developer · ผลอยู่ในหน่วยความจำ ไม่บันทึกลงฐานข้อมูล</p><p>กล้อง: {opening ? "loading" : camera ? "ready" : error ? "error" : "ยังไม่เปิด"} · model: {modelStatus} · ข้าง: {side || "ไม่มีข้อมูล"}</p><div className="action-row"><button type="button" className="command" disabled={running || paused || camera} onClick={() => chooseSide(side === "left" ? "right" : "left")}>เปลี่ยนข้าง</button><button type="button" className="command" onClick={() => discard(false, true)}>รีเซ็ตผลทดสอบ</button>{(["skeleton", "ids", "angles"] as const).map(key => <label key={key}><input type="checkbox" defaultChecked={key !== "ids"} onChange={event => { developerOverlay.current[key] = event.target.checked; }} />{key === "skeleton" ? "Skeleton" : key === "ids" ? "landmark ID" : "เส้น/มุม"}</label>)}</div>{debugEnabled && <><p>FPS {developerView?.fps?.toFixed(1) ?? "ไม่มีข้อมูล"} · inference {developerView?.inferenceMs?.toFixed(2) ?? "ไม่มีข้อมูล"} ms · peak รอบปัจจุบัน {developerView?.peak?.toFixed(2) ?? "ไม่มีข้อมูล"} · feedback engine: {developerView?.feedback ?? "ไม่มีข้อมูล"}</p><p>พิกัด raw image normalized: x/y 0–1, z ความลึกสัมพัทธ์; มุม image-2d ใช้ x×videoWidth, y×videoHeight, ไม่ใช้ z · เข่า hip–knee–ankle · ลำตัว shoulder–hip–knee</p><div className="table-scroll"><table><thead><tr><th>ID</th><th>x</th><th>y</th><th>z</th><th>visibility</th></tr></thead><tbody>{developerView?.points.map(({id,point}) => <tr key={id}><td>{id}</td>{[point?.x,point?.y,point?.z,point?.visibility].map((value,index)=><td key={index}>{value?.toFixed(4) ?? "ไม่มีข้อมูล"}</td>)}</tr>)}</tbody></table></div></>}</section>}
+      {developer && <section className="developer-controls"><LogoutButton /><DisplaySettings /><p>Developer · ผลอยู่ในหน่วยความจำ ไม่บันทึกลงฐานข้อมูล</p><p>กล้อง: {opening ? "loading" : camera ? "ready" : error ? "error" : "ยังไม่เปิด"} · model: {modelStatus} · ข้าง: {side || "ไม่มีข้อมูล"}</p><div className="action-row"><button type="button" className="command" disabled={running || paused || camera} onClick={() => chooseSide(side === "left" ? "right" : "left")}>เปลี่ยนข้าง</button><button type="button" className="command" onClick={() => discard(false, true)}>รีเซ็ตผลทดสอบ</button>{(["skeleton", "ids", "angles"] as const).map(key => <label key={key}><input type="checkbox" defaultChecked={key !== "ids"} onChange={event => { developerOverlay.current[key] = event.target.checked; }} />{key === "skeleton" ? "Skeleton" : key === "ids" ? "landmark ID" : "เส้น/มุม"}</label>)}</div>{debugEnabled && <><p>FPS {developerView?.fps?.toFixed(1) ?? "ไม่มีข้อมูล"} · inference {developerView?.inferenceMs?.toFixed(2) ?? "ไม่มีข้อมูล"} ms · peak รอบปัจจุบัน {developerView?.peak?.toFixed(2) ?? "ไม่มีข้อมูล"} · feedback engine: {developerView?.feedback ?? "ไม่มีข้อมูล"}</p><p>พิกัด raw image normalized: x/y 0–1, z ความลึกสัมพัทธ์; มุม image-2d ใช้ x×videoWidth, y×videoHeight, ไม่ใช้ z · เข่า hip–knee–ankle · ลำตัว shoulder–hip–knee</p><div className="table-scroll"><table><thead><tr><th>ID</th><th>x</th><th>y</th><th>z</th><th>visibility</th></tr></thead><tbody>{developerView?.points.map(({id,point}) => <tr key={id}><td>{id}</td>{[point?.x,point?.y,point?.z,point?.visibility].map((value,index)=><td key={index}>{value?.toFixed(4) ?? "ไม่มีข้อมูล"}</td>)}</tr>)}</tbody></table></div></>}</section>}
       {developer && <><button type="button" className="command" aria-expanded={debugEnabled} aria-controls="pose-test-debug" onClick={() => setDebugEnabled(value => !value)}>Debug ท่าทดสอบ</button>{debugEnabled && <section id="pose-test-debug" aria-label="Debug ท่าทดสอบ">
         {!camera || !definition ? <p>เปิดกล้องและเลือกข้างเพื่อดูข้อมูลสด</p> : <>
           <p>exercise: {definition.exerciseCode} · definition {definition.definitionVersion} / criteria {definition.criteriaVersion} · ข้าง {side}</p>

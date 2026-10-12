@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, MoreHorizontal, Moon, Settings, Sun, X } from "lucide-react";
 import { fontSizeCookie, themeCookie, type FontSize, type Theme } from "@/lib/display-settings";
+import { audioConfig, type Voice } from "@/lib/audio/catalog";
 
 const DisplayContext = createContext<{
   size: FontSize;
@@ -10,11 +11,19 @@ const DisplayContext = createContext<{
   theme: Theme;
   setTheme: (theme: Theme) => void;
   open: (trigger: HTMLElement) => void;
+  audioEnabled: boolean; voice: Voice;
+  setAudio: (enabled: boolean, voice: Voice) => void;
 } | null>(null);
 
-export function DisplaySettingsProvider({ initialSize, initialTheme, children }: { initialSize: FontSize; initialTheme: Theme; children: ReactNode }) {
+export function DisplaySettingsProvider({ initialSize, initialTheme, initialAudioEnabled = audioConfig.enabled, initialVoice = audioConfig.voice, children }: { initialSize: FontSize; initialTheme: Theme; initialAudioEnabled?: boolean; initialVoice?: Voice; children: ReactNode }) {
   const [size, setCurrentSize] = useState(initialSize);
   const [theme, setCurrentTheme] = useState(initialTheme);
+  const [audioEnabled, setAudioEnabled] = useState(initialAudioEnabled);
+  const [voice, setVoice] = useState(initialVoice);
+  function setAudio(enabled: boolean, nextVoice: Voice) {
+    setAudioEnabled(enabled); setVoice(nextVoice);
+    savePreference("more-audio-enabled", enabled ? "1" : "0"); savePreference("more-audio-voice", nextVoice);
+  }
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef("");
@@ -44,7 +53,7 @@ export function DisplaySettingsProvider({ initialSize, initialTheme, children }:
     document.documentElement.dataset.theme = nextTheme;
     savePreference(themeCookie, nextTheme);
   }
-  return <DisplayContext.Provider value={{ size, setSize, theme, setTheme, open }}>{children}
+  return <DisplayContext.Provider value={{ size, setSize, theme, setTheme, open, audioEnabled, voice, setAudio }}>{children}
     <dialog ref={dialogRef} className="display-dialog" aria-labelledby="display-settings-title" onClose={restoreFocus} onKeyDown={event => {
       if (event.key !== "Tab") return;
       const controls = event.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled]), input:checked");
@@ -59,6 +68,12 @@ export function DisplaySettingsProvider({ initialSize, initialTheme, children }:
       </div>
     </dialog>
   </DisplayContext.Provider>;
+}
+
+export function useTrainingAudioSettings() {
+  const settings = useContext(DisplayContext);
+  if (!settings) throw new Error("DisplaySettingsProvider is required");
+  return settings;
 }
 
 export function DisplaySettings({ className = "", labeled = false }: { className?: string; labeled?: boolean }) {
@@ -93,6 +108,7 @@ function DisplayOptions() {
   const effectiveTheme = settings.theme === "system" ? (systemDark ? "dark" : "light") : settings.theme;
   return (
     <section className="display-settings">
+      <fieldset><legend>เสียงระหว่างฝึก</legend><label><input type="checkbox" checked={settings.audioEnabled} onChange={event => settings.setAudio(event.target.checked, settings.voice)} /> เปิดเสียง</label><div className="theme-options">{(["male", "female"] as const).map(voice => <label key={voice}><input type="radio" name="training-voice" checked={settings.voice === voice} onChange={() => settings.setAudio(settings.audioEnabled, voice)} /><span>{voice === "male" ? "เสียงชาย" : "เสียงหญิง"}</span></label>)}</div></fieldset>
       <fieldset>
         <legend>ขนาดตัวอักษร</legend>
         <div className="font-size-options">

@@ -16,6 +16,10 @@ const a = run(knee, [90, 90, 125, 165, 90, 90]);
 const b = run(shoulder, [20, 20, 65, 90, 20, 20]);
 assert.equal(a.counter.repetitions.length, 1); assert.equal(b.counter.repetitions.length, 1);
 assert.equal(a.engine.correct(a.counter.repetitions[0], knee), true);
+// Set targets are presentation/planning data, never a cap on correctness.
+const overflow = run(knee, Array.from({length:8},()=>[90,90,125,165,90,90]).flat());
+assert.equal(overflow.counter.repetitions.length,8);
+assert.equal(overflow.counter.repetitions.filter(rep=>overflow.engine.correct(rep,knee)).length,8);
 assert.equal(b.engine.correct(b.counter.repetitions[0], shoulder), true);
 assert.equal(a.engine.complete(b.counter.repetitions[0], knee), false);
 const incorrect = run(shoulder, [20, 20, 65, 70, 20, 20]);
@@ -27,4 +31,4 @@ knee.start.min = 1; knee.landmarks[0] = 0; knee.checkpointIds.start = 99;
 assert.equal(cameraKneeExtension.start.min, 60); assert.equal(cameraKneeExtension.landmarksBySide.left[0], 23); assert.equal(binding.checkpointIds.start, 1);
 assert.throws(() => poseEngine({ ...shoulder, engine: "missing" }));
 assert.equal(poseEngine({ ...shoulder, engine: undefined }), poseEngine(shoulder));
-console.log("Per-exercise engine isolation: 16 assertions passed.");
+console.log("Per-exercise engine isolation and overflow: 18 assertions passed.");
