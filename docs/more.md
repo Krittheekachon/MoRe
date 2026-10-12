@@ -1,5 +1,11 @@
 # MoRe Scope and Stack
 
+Primary-doctor feature removed across profile/UI/API/schema by user instruction. Doctor login, patient list and training integration remain. See patient-doctor-integration.md and removal migration.
+
+Latest camera mock criteria v7: correct knee peak 155–180°, inclusive. Retains the user-edited torso range 80–115°. Historical v6 (165–170°) and saved results retained. See mock-readiness-v4.md; sync checkpoints with node scripts/sync-camera-criteria.mjs.
+
+Patient Routine tooling (2026-10-12): [patient-test-tools.md](patient-test-tools.md) documents `?testTools=1`, server environment/role checks, session-specific Bangkok business date and confirmed result deletion. This replaces the historical global Demo date-file mechanism; no schema or doctor UI changes.
+
 Current mock readiness v4: widened test start/torso ranges, timestamp edge grace, orientation lock after preparation and opt-in camera-test debug. Additive checkpoint versions preserve historical results. See [mock-readiness-v4.md](mock-readiness-v4.md); v3 descriptions below are historical.
 
 Current camera model (2026-10-09): Pose Landmarker Full float16 v1 replaces Lite, using the existing CPU worker, filters and exercise criteria. Run `node scripts/setup-pose-assets.mjs` to provision the local Full asset; older Lite references below are historical. Physical iPad performance remains to verify.
@@ -230,3 +236,9 @@ Training milestone (2026-10-05): patient Home/template selection/daily list/guid
 - Verification must cover responsive layouts, keyboard/touch usability, connected navigation, registration draft review, saved-only progress, partial save/pause/discard behavior, immutable daily targets, template versions, empty/error states, and unknown-route handling. Real webcam behavior and physical-device review are recorded separately from emulated tests.
 
 Patient HN allocation (2026-10-11): successful self-registration assigns a server-generated numeric HN, minimum 5 digits starting 00001; increments highest existing numeric HN. Existing HNs (including nonnumeric demo codes) are preserved. No schema migration or client HN input. Allocation and user/profile insert share a ReadCommitted transaction with PostgreSQL advisory lock 60703052; failed registrations roll back. HN remains read-only for patients. This supersedes earlier hospital-card/manual HN wording.
+# Daily Routine persistence (2026-10-12)
+
+See [daily-routine.md](daily-routine.md) for actual-repetition completion, per-side targets, immutable daily snapshots, Bangkok midnight/start-day recording, development date simulation and verification. This supersedes older saved-set-count completion rules; schema and pose criteria are unchanged.
+# Patient–doctor data integration (2026-10-12)
+
+Approved independent PrimaryDoctor directory and patient FK supersede patient-entered primary-doctor free text. Registration/user IDs, training persistence and Bangkok daily snapshots are reused; legacy name data is preserved read-only. Additive doctor-role APIs and patient profile fields are ready for teammate UI integration, not a claim that unpublished doctor screens have been connected. See [patient-doctor-integration.md](patient-doctor-integration.md).

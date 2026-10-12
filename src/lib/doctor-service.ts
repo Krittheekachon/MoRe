@@ -19,7 +19,7 @@ export async function staffPatient(staff: Staff, patientId: number) {
   const synthetic = await isDemoPatient(patientId);
   if (synthetic !== staff.demo) throw new AccountError("ไม่พบผู้ป่วย", 404);
   const profile = await prisma.patientProfile.findUnique({ where: { patient_id: patientId }, select: {
-    patient_id: true, hn: true, full_name: true, date_of_birth: true, phone: true, sex: true, primary_doctor_name: true, stroke_type: true, stroke_diagnosed_on: true, other_conditions: true, medical_notes: true,
+    patient_id: true, hn: true, full_name: true, date_of_birth: true, phone: true, sex: true, stroke_type: true, stroke_diagnosed_on: true, other_conditions: true, medical_notes: true,
   } });
   if (!profile) throw new AccountError("ไม่พบผู้ป่วย", 404);
   return { ...profile, date_of_birth: profile.date_of_birth?.toISOString().slice(0, 10) ?? null, stroke_diagnosed_on: profile.stroke_diagnosed_on?.toISOString().slice(0, 10) ?? null };

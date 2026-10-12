@@ -31,7 +31,7 @@ export type PoseCriteria = {
   checkpointIds: { start: number; peak: number; returned: number };
 };
 export type CompletedRep = { startedAt: number; completedAt: number; startAngle: number; peakAngle: number; endAngle: number; confidence: number };
-export type SaveSetInput = { side: Side; metricId: number; definitionVersion: number; criteriaVersion: number; elapsedSeconds: number; repetitions: CompletedRep[] };
+export type SaveSetInput = { side: Side; metricId: number; definitionVersion: number; criteriaVersion: number; elapsedSeconds: number; repetitions: CompletedRep[]; baseReps?: number };
 export type PosePoint = { x: number; y: number; z: number; visibility?: number; presence?: number };
-export type RecordingSlot = { sessionId: number; setId: number; setNumber: number; targetReps: number };
-export type SavedSet = { setId: number; reps: number; savedSets: number; targetSets: number; maxAngle: number | null; averageAngle: number | null };
+export type RecordingSlot = { sessionId: number; setId: number; setNumber: number; targetReps: number; repetitions?: CompletedRep[]; elapsedSeconds?: number; baseReps?: number };
+export type SavedSet = { setId: number; reps: number; correctReps: number; setNumber: number; targetReps: number; setCompleted: boolean; exerciseCompleted: boolean; dayCompleted: boolean; savedSets: number; completedSets?: number; targetSets: number; maxAngle: number | null; averageAngle: number | null };

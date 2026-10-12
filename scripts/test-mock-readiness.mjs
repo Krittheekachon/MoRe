@@ -100,7 +100,7 @@ const clock=new StableWindow();clock.pass(0,250);clock.pass(100,250);clock.fail(
 clock.fail(500,250);check(clock.pass(900,250),0);
 const {AngleReturnFeedback}=await jiti.import(path.resolve("src/lib/pose/engines/angle-return-feedback.ts"));
 for(const side of ["left","right"]) {
-  const c=criteria(side,5);check(c.start,{min:60,max:115});check(c.correctPeak,{min:160,max:170});
+  const c=criteria(side,5);check(c.start,{min:60,max:115});check(c.correctPeak,{min:160,max:180});
   const bentStanding=points(c,95),hip=bentStanding[c.landmarks[0]],sign=c.preparation.facingSign;
   const theta=40*Math.PI/180;
   for(const index of [c.landmarks[1],c.landmarks[2],c.preparation.heel,c.preparation.foot]) {
@@ -164,5 +164,28 @@ for(const side of ["left","right"]) {
   // A stand/sit-like sequence with torso outside range never starts a rep.
   for(const k of [90,130,165,130,90])hold(k,150);check(counter.repetitions.length,2);
   hold(90);hold(165);step(165,89);hold(90);check(counter.repetitions.length,2);
+}
+
+for(const side of ["left","right"]) {
+ const c=criteria(side,6);check(c.correctPeak,{min:165,max:170});check(c.preparation.torsoThigh,{min:80,max:115});
+ for(const torso of [80.001,85,115-1e-6,79,116]){
+  const p=points(c,90);p[c.preparation.shoulder].x-=c.preparation.facingSign*.25*(600/800)*Math.tan((torso-90)*Math.PI/180);
+  const gate=new KneePreparation();let result;for(const at of [100,200,300,400,500])result=gate.update(p,c,800,600,at,true,{phase:"preparing",completedReps:0});
+  check(result.ready,torso>=80&&torso<=115);
+ }
+ for(const peak of [164,165,170,171]){
+  const counter=new RepetitionCycle(c);let at=0;for(const angle of [90,90,90,90,130,peak,peak,peak,90,90,90,90])counter.sample(angle,at+=100,1);
+  check(counter.repetitions.length,1);check((await jiti.import(path.resolve("src/lib/pose/engines/angle-return.ts"))).angleReturnEngine.correct(counter.repetitions[0],c),peak>=165&&peak<=170);
+ }
+}
+
+for (const side of ["left", "right"]) {
+ const current=criteria(side,7);check(current.correctPeak,{min:155,max:180});check(criteria(side,6).correctPeak,{min:165,max:170});
+ const engine=(await jiti.import(path.resolve("src/lib/pose/engines/angle-return.ts"))).angleReturnEngine;
+ for(const peak of [154,155,165,170,175,180]) {
+  const counter=new RepetitionCycle(current);let at=0;
+  for(const angle of [90,90,90,90,130,peak,peak,peak,90,90,90,90])counter.sample(angle,at+=100,1);
+  check(counter.repetitions.length,1);check(engine.correct(counter.repetitions[0],current),peak>=155&&peak<=180);
+ }
 }
 console.log(JSON.stringify({readinessChecks:checks,physicalCameraTested:false}));

@@ -17,11 +17,13 @@ export type DailyTrainingItem = {
   id: number; planId: number; exercise: TrainingExercise; side: string | null;
   targetSets: number; targetReps: number; savedSets: number; status: "not_started" | "in_progress" | "completed";
   instructions: string | null; canStart: boolean;
+  completedSets?: number; progressSets?: number;
 };
 export type DailyTraining = {
   date: string; dayId: number | null; items: DailyTrainingItem[]; totalSets: number;
   savedSets: number; percent: number; snapshotFromPreviousPlan: boolean;
   activePlan: PatientTrainingPlan | null;
+  status?: "not_started" | "in_progress" | "completed";
 };
 export type TrainingHistory = {
   week: { date: string; count: number }[];

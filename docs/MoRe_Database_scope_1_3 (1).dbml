@@ -24,7 +24,6 @@ Table patient_profiles {
   date_of_birth date
   phone varchar(20)
   sex varchar(20)
-  primary_doctor_name varchar(150) [note: 'ชื่อแพทย์ประจำตัวตามที่ผู้ป่วยกรอก; ไม่ผูกกับบัญชี admin ที่ใช้ร่วมกัน']
   stroke_type varchar(100)
   stroke_diagnosed_on date
   other_conditions text
@@ -32,6 +31,8 @@ Table patient_profiles {
   updated_at timestamptz [not null]
   Note: 'คำนวณอายุจากวันเกิด; ไม่บันทึกเลขบัตรประชาชนลง log และไม่เก็บเลขสี่ตัวท้ายแยก'
 }
+
+
 
 Table exercise_modules {
   id int [pk, increment]
@@ -175,9 +176,9 @@ Table daily_exercises {
   plan_exercise_id int [not null, ref: > plan_exercises.id]
   exercise_id int [not null, ref: > exercises.id]
   selected_side varchar(20)
-  target_sets smallint [not null, note: 'จำนวนเซตที่ต้องทำทั้งหมดในวันนี้ รวมความถี่ที่กำหนดไว้']
+  target_sets smallint [not null, note: 'snapshot จำนวนเซตวันนี้ รวมความถี่; both ต้องทำจำนวนนี้ต่อข้าง ซ้ายและขวา']
   target_reps_per_set smallint [not null]
-  status varchar(20) [not null, default: 'not_started', note: 'not_started=ยังไม่เริ่ม, in_progress=เริ่มแล้วแต่เซตที่บันทึกยังไม่ครบ, completed=บันทึกครบเซตเป้าหมาย']
+  status varchar(20) [not null, default: 'not_started', note: 'not_started=ยังไม่เริ่ม, in_progress=เริ่มแล้วแต่ยังไม่ครบเป้าหมาย, completed=ทุกข้างมีเซต saved ที่มีรอบครบ target_reps ตามจำนวนเซตเป้าหมาย']
   started_at timestamptz
   completed_at timestamptz
   indexes { (rehabilitation_day_id, plan_exercise_id) [unique] }
@@ -213,13 +214,13 @@ Table exercise_sets {
   target_reps smallint [not null]
   status varchar(20) [not null, default: 'draft', note: 'draft=ยังไม่บันทึก, paused=หยุดพักและทำต่อได้, saved=บันทึกแล้ว, cancelled=ยกเลิก']
   started_at timestamptz
-  saved_at timestamptz [note: 'เวลาที่กดบันทึก; นับเซตนี้แม้ทำไม่ครบเป้าหมาย']
+  saved_at timestamptz [note: 'เวลาที่กดบันทึก; เก็บประวัติแม้ไม่ครบเป้าหมาย แต่ไม่ถือว่าครบเซต Routine']
   last_activity_at timestamptz
   elapsed_seconds int [note: 'เวลาที่ฝึกจริงเป็นวินาที ไม่รวมเวลาที่กดหยุดพัก']
   score decimal(6,2)
   scoring_version smallint
   indexes { (exercise_session_id, set_number) [unique] }
-  Note: 'กดบันทึกได้แม้จำนวนครั้งไม่ครบเป้าหมาย; บันทึกแล้วปิดเซตและเริ่มเซตถัดไป; กดเริ่มใหม่ให้ล้างผลเซตปัจจุบัน; กดออกก่อนบันทึกให้ทิ้งผลเซตปัจจุบัน; รายงานนับเฉพาะสถานะ saved; cancelled เก็บได้เฉพาะสถานะโดยไม่มีผลการเคลื่อนไหว'
+  Note: 'บันทึกเซตที่เริ่มแล้วได้แม้ 0 ครั้งหรือยังไม่ครบ; ทำต่อใน set ID เดิมโดย append รอบใหม่และรักษารอบที่ยืนยันแล้ว; บันทึกไม่มีรอบใหม่อัปเดต elapsed ของเซตเดิมไม่เพิ่มเซต; 0 ครั้งไม่ถือว่าทำครบและไม่มี metric ปลอม; เมื่อครบ target_reps จึงเริ่มเซตตามแผนถัดไป; reset/ออกทิ้งเฉพาะผลที่ยังไม่บันทึก ไม่ลบผล saved; รายงานนับเฉพาะสถานะ saved; cancelled ไม่มีผลการเคลื่อนไหว; ลำดับเซตตามแผนต่อข้างแยกจากจำนวนครั้งที่กดบันทึกและ set_number ภายใน session'
 }
 
 Table repetitions {
@@ -262,7 +263,7 @@ Table repetition_checkpoint_results {
 }
 
 
-// ความคืบหน้ารายวัน = จำนวนเซตที่บันทึกแล้ว ÷ ผลรวมเซตที่ได้รับมอบหมายในวันนั้น × 100
+// ความคืบหน้ารายวัน = ผลรวม min(รอบที่ทำจริง, target_reps)/target_reps จากเซต saved ที่ดีที่สุดไม่เกินเป้าหมายต่อข้าง ÷ จำนวนเซตเป้าหมายทุกข้าง × 100
 // จำนวนครั้งรวม/ครั้งที่ถูกต้องต่อเซต = นับ repetitions ทั้งหมด/เฉพาะ is_correct ในเซตที่บันทึกแล้ว
 // กราฟแนวโน้มและการเทียบวันก่อน = สรุปผลตามวันที่และท่าฝึก เฉพาะเซตที่บันทึกแล้ว
 // คะแนนรายท่า/รายหมวด = รวม quality_score ด้วยสูตรที่แพทย์อนุมัติและเก็บหมายเลขรุ่นสูตร
@@ -289,9 +290,9 @@ Table repetition_checkpoint_results {
 // - จำนวนครั้งจริงและจำนวนครั้งถูกต้องคำนวณจาก repetitions เฉพาะเซต saved
 // - มุมเฉลี่ยคือค่าเฉลี่ยของมุมสูงสุดรายรอบ ไม่ใช่ค่าเฉลี่ยทุกเฟรม
 // - ลำดับเซตเริ่มใหม่ในแต่ละ session; ความคืบหน้ารายวันรวมเซตที่ saved จากทุก session ของรายการฝึกวันนั้น
-// - ไม่ให้เซตที่บันทึกเพื่อเป้าหมายเดียวกันเกิน daily_exercises.target_sets; กดบันทึกพร้อมกันต้องล็อกรายการรายวัน
+// - เก็บผลเกินเป้าหมายได้ แต่ความก้าวหน้าสูงสุด 100% และ Routine สำเร็จได้ครั้งเดียวต่อวัน; กดบันทึกพร้อมกันต้องล็อกรายการรายวัน
 // - เมื่อเป้าหมายครบแล้ว ให้เริ่ม session เพิ่มได้เฉพาะเมื่อระบบมีฟังก์ชันฝึกเสริมที่ระบุชัดเจน
-// - สถานะ session completed หมายถึงจบรอบนั้น; สถานะ daily_exercises.completed หมายถึงบันทึกครบเป้าหมายรายวัน
+// - daily_exercises.completed ต้องครบจำนวนรอบต่อเซตและทุกข้างตาม snapshot; เซตเริ่มก่อนเที่ยงคืนให้นับ local_date เดิมแม้บันทึกหลังเที่ยงคืน (Asia/Bangkok)
 // - ข้อมูลตรวจกล้องเป็นผลสรุปการตรวจแต่ละครั้ง ไม่ใช่จุดร่างกายทุกเฟรม
 // - ไม่เพิ่มตารางกราฟหรือคะแนนหมวดที่คำนวณได้จากผลเดิม; ยังต้องตกลงสูตรคะแนนก่อนใช้จริง
 // ปุ่มหยุด: เปลี่ยน session และเซตปัจจุบันเป็น paused; คงจำนวนครั้ง มุม และเวลาฝึกสะสมไว้

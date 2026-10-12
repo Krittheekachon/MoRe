@@ -39,7 +39,6 @@ model PatientProfile {
   date_of_birth         DateTime? @db.Date
   phone                 String?   @db.VarChar(20)
   sex                   String?   @db.VarChar(20)
-  primary_doctor_name   String?   @db.VarChar(150)
   stroke_type           String?   @db.VarChar(100)
   stroke_diagnosed_on   DateTime? @db.Date
   other_conditions      String?   @db.Text
@@ -50,8 +49,10 @@ model PatientProfile {
   plans RehabilitationPlan[]
   days  RehabilitationDay[]
 
+
   @@map("patient_profiles")
 }
+
 
 model ExerciseModule {
   id            Int        @id @default(autoincrement()) @db.Integer

@@ -25,14 +25,14 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   return mutation(request, async data => {
     const user = await patient();
-    onlyFields(data, ["full_name", "date_of_birth", "sex", "phone", "primary_doctor_name", "other_conditions"]);
+    onlyFields(data, ["full_name", "date_of_birth", "sex", "phone", "other_conditions"]);
     const personal = personalFields(data);
     const now = new Date();
     await prisma.$transaction(async tx => {
       const existing = await tx.patientProfile.findUnique({ where: { patient_id: user.id }, select: { stroke_diagnosed_on: true } });
       if (existing?.stroke_diagnosed_on && personal.date_of_birth! > existing.stroke_diagnosed_on) throw new AccountError("วันเกิดต้องไม่หลังวันที่วินิจฉัย");
       await tx.patientProfile.update({ where: { patient_id: user.id }, data: { ...personal,
-        phone: text(data, "phone", 20) || null, primary_doctor_name: text(data, "primary_doctor_name", 150) || null, updated_at: now } });
+        phone: text(data, "phone", 20) || null, updated_at: now } });
       await tx.user.update({ where: { id: user.id }, data: { display_name: Array.from(personal.full_name).slice(0, 100).join(""), updated_at: now } });
     });
     return { ok: true, profile: await readOwnProfile(user.id) };

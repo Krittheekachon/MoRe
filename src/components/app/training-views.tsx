@@ -29,7 +29,7 @@ export function TrainingCards({ today }: { today: DailyTraining }) {
   return <div className="exercise-grid">{today.items.map(item => <article className="exercise-item" key={item.id}>
     <div className="exercise-title-row"><span className="tag">หมวด {item.exercise.module}</span><span className={`exercise-status ${item.status === "completed" ? "complete" : item.status === "in_progress" ? "active" : "pending"}`}>{item.status === "completed" ? "เสร็จสิ้น" : item.status === "in_progress" ? "กำลังดำเนินการ" : "ยังไม่ดำเนินการ"}</span></div>
     <h2>{item.exercise.name}</h2><p>{item.targetSets} เซต · {item.targetReps} ครั้ง / เซต</p>
-    <progress value={Math.min(item.savedSets, item.targetSets)} max={item.targetSets} aria-label={`ความก้าวหน้า ${item.exercise.name}`} /><p>{item.savedSets} / {item.targetSets} เซตที่บันทึก</p>
+    <progress value={(item.progressSets ?? Math.min(item.savedSets, item.targetSets))} max={item.targetSets} aria-label={`ความก้าวหน้า ${item.exercise.name}`} /><p>ครบเป้าหมาย {item.completedSets ?? item.savedSets} / {item.targetSets} เซต · บันทึกทั้งหมด {item.savedSets} เซต</p>
     <div className="action-row"><Link className="command primary" href={trainingHref(item, "guide")}>{item.canStart ? "เริ่มฝึก" : "ดูคู่มือ"}<ArrowRight size={18} /></Link></div>
   </article>)}</div>;
 }
@@ -37,18 +37,18 @@ export function TrainingExercises({ patient, today }: { patient: PatientProfile;
   return <><PageHeading title="แผนการฝึก" subtitle={dateLabel(today.date)}><div className="exercise-heading-actions"><Link className="command" href="/patient/plan">จัดการแผน</Link><DisplayMenu navigation /></div></PageHeading><PatientBanner accountProfile={patient} /><SnapshotNotice today={today} /><div className="section-heading"><h2>เป้าหมายวันนี้</h2></div><TrainingCards today={today} /></>;
 }
 export function TrainingHome({ patient, today, history }: { patient: PatientProfile; today: DailyTraining; history: TrainingHistory }) {
-  const next = today.items.find(item => item.canStart);
+  const next = today.items.find(item => item.canStart && item.status !== "completed");
   const completed = today.items.filter(item => item.status === "completed").length;
   return <>
     <PageHeading title="หน้าหลัก" subtitle={dateLabel(today.date)}><DisplaySettings /></PageHeading><PatientBanner accountProfile={patient} /><SnapshotNotice today={today} />
     <div className="dashboard-grid"><section className="daily-overview" aria-label="สรุปการฝึกวันนี้">
       <div className="daily-meter" role="meter" aria-label="ความก้าวหน้ารายวัน" aria-valuemin={0} aria-valuemax={100} aria-valuenow={today.percent}>
         <svg viewBox="0 0 120 120" aria-hidden="true"><circle className="meter-track" cx="60" cy="60" r="52" /><circle className="meter-value" cx="60" cy="60" r="52" pathLength="100" strokeDasharray={`${today.percent} 100`} /></svg><div><strong>{today.percent}%</strong><span>ความคืบหน้าวันนี้</span></div>
-      </div><dl className="daily-kpis"><div><dt>เซตที่บันทึก</dt><dd>{today.savedSets} / {today.totalSets} เซต</dd></div><div><dt>ท่าที่บันทึกครบ</dt><dd>{completed} / {today.items.length} ท่า</dd></div><div><dt>เหลืออีก</dt><dd>{Math.max(0, today.totalSets - today.items.reduce((sum, item) => sum + Math.min(item.savedSets, item.targetSets), 0))} เซต</dd></div></dl>
+      </div><dl className="daily-kpis"><div><dt>เซตที่ครบเป้าหมาย</dt><dd>{today.items.reduce((sum, item) => sum + (item.completedSets ?? item.savedSets), 0)} / {today.totalSets} เซต</dd></div><div><dt>ท่าที่ครบตามแผน</dt><dd>{completed} / {today.items.length} ท่า</dd></div><div><dt>เหลืออีก</dt><dd>{Math.max(0, today.totalSets - today.items.reduce((sum, item) => sum + (item.completedSets ?? Math.min(item.savedSets, item.targetSets)), 0))} เซต</dd></div></dl>
     </section><div className="dashboard-followup"><section className="next-exercise">
       <span className="info-badge">{next ? "ท่าถัดไป" : today.items.length ? "แผนวันนี้" : "ไม่มีรายการวันนี้"}</span>
       <h2>{next?.exercise.name || (today.items.length ? completed === today.items.length ? "บันทึกครบตามแผนของวันนี้แล้ว" : "รายการฝึกยังไม่พร้อมเริ่ม" : "ยังไม่มีรายการฝึกวันนี้")}</h2>
-      {next && <p className="muted">เซตที่ {next.savedSets + 1} จาก {next.targetSets} · {next.targetReps} ครั้งต่อเซต</p>}
+      {next && <p className="muted">เซตที่ {(next.completedSets ?? next.savedSets) + 1} จาก {next.targetSets} · {next.targetReps} ครั้งต่อเซต</p>}
       <div className="action-row">{next && <Link className="command primary" href={trainingHref(next, "guide")}>เริ่มฝึก <ArrowRight size={18} /></Link>}<Link className="command" href={next ? trainingHref(next, "guide") : "/patient/plan"}>{next ? "วิธีทำท่านี้" : "ดูแผนฝึก"}</Link></div>
     </section><section className="week-history" aria-label="ประวัติ 7 วันที่ผ่านมา"><div className="section-heading"><h2>การฝึก 7 วันล่าสุด</h2><CalendarDays size={20} /></div><div className="week-days">{history.week.map(day => {
       const date = new Date(`${day.date}T00:00:00Z`);
@@ -62,14 +62,23 @@ export function TrainingHome({ patient, today, history }: { patient: PatientProf
 export function TrainingPlanSelection({ templates, activePlan, demo = false }: { templates: TrainingTemplate[]; activePlan: PatientTrainingPlan | null; demo?: boolean }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number | null>(activePlan?.templateId || null);
-  const [sets, setSets] = useState(1); const [reps, setReps] = useState(5); const [side, setSide] = useState<"left" | "right">("left");
+  // Keep the editing draft as text: Number("") would force a zero on deletion.
+  const [sets, setSets] = useState("1"); const [reps, setReps] = useState("5"); const [side, setSide] = useState<"left" | "right">("left");
   const [query, setQuery] = useState(""); const [pending, setPending] = useState(false); const [error, setError] = useState("");
   const search = query.trim().toLowerCase();
   const visible = templates.filter(template => `${template.name} ${template.code} ${template.items.map(item => item.exercise.name).join(" ")}`.toLowerCase().includes(search));
   async function select() {
     if (!selected || pending) return;
+    const mock = isMockPlan(templates.find(template => template.id === selected)?.code);
+    const targetSets = Number(sets), targetReps = Number(reps);
+    if (mock && (!sets.trim() || !Number.isInteger(targetSets) || targetSets < 1 || targetSets > 20)) {
+      setError("กรุณาระบุจำนวนเซตเป็นจำนวนเต็มตั้งแต่ 1–20"); return;
+    }
+    if (mock && (!reps.trim() || !Number.isInteger(targetReps) || targetReps < 1 || targetReps > 100)) {
+      setError("กรุณาระบุครั้งต่อเซตเป็นจำนวนเต็มตั้งแต่ 1–100"); return;
+    }
     setPending(true); setError("");
-    try { await accountRequest("/api/patient/training/plan", { templateId: selected, ...(isMockPlan(templates.find(template => template.id === selected)?.code) ? { cameraTest: { sets, reps, side } } : {}) }); router.push("/patient"); router.refresh(); }
+    try { await accountRequest("/api/patient/training/plan", { templateId: selected, ...(mock ? { cameraTest: { sets: targetSets, reps: targetReps, side } } : {}) }); router.push("/patient"); router.refresh(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "กรุณาลองใหม่"); }
     finally { setPending(false); }
   }
@@ -86,7 +95,7 @@ export function TrainingPlanSelection({ templates, activePlan, demo = false }: {
     {!templates.length ? <EmptyState title="ยังไม่มีแผนกลางที่พร้อมให้เลือก"><p>กรุณาติดต่อทีมรักษาเพื่อจัดแผนฝึก</p></EmptyState> : <div className="exercise-picker-modules">{visible.map(template => <details className="exercise-picker-module" key={template.id} open={selected === template.id || undefined}>
       <summary><span><b>{template.name}</b> {isMockPlan(template.code) && <MockBadge />}<small> {template.code} · รุ่น {template.version}</small></span><ChevronDown size={24} /></summary>
       <div className="exercise-picker-options"><label className="exercise-picker-option"><input type="radio" name="training-template" value={template.id} checked={selected === template.id} disabled={pending} onChange={() => setSelected(template.id)} /><span><strong>เลือก {template.name}</strong>{template.description && <small>{template.description}</small>}</span></label>
-        {isMockPlan(template.code) && <><p>Module {template.items[0]?.exercise.module} · {template.items[0]?.exercise.moduleName}</p>{selected === template.id && <div className="filter-bar"><label>จำนวนเซต<input type="number" min={1} max={20} step={1} value={sets} disabled={pending} onChange={event => setSets(Number(event.target.value))} /></label><label>ครั้งต่อเซต<input type="number" min={1} max={100} step={1} value={reps} disabled={pending} onChange={event => setReps(Number(event.target.value))} /></label><label>ข้างที่ฝึก<select value={side} disabled={pending} onChange={event => setSide(event.target.value as "left" | "right")}><option value="left">ซ้าย</option><option value="right">ขวา</option></select></label></div>}</>}
+        {isMockPlan(template.code) && <><p>Module {template.items[0]?.exercise.module} · {template.items[0]?.exercise.moduleName}</p>{selected === template.id && <div className="filter-bar"><label>จำนวนเซต<input type="number" inputMode="numeric" min={1} max={20} step={1} value={sets} disabled={pending} onChange={event => setSets(event.target.value)} /></label><label>ครั้งต่อเซต<input type="number" inputMode="numeric" min={1} max={100} step={1} value={reps} disabled={pending} onChange={event => setReps(event.target.value)} /></label><label>ข้างที่ฝึก<select value={side} disabled={pending} onChange={event => setSide(event.target.value as "left" | "right")}><option value="left">ซ้าย</option><option value="right">ขวา</option></select></label></div>}</>}
         <ul className="training-template-items">{template.items.map(item => <li key={item.id}><strong>{item.exercise.name}</strong><p>{item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {schedule(item)}</p><p>ข้าง: {sides[item.side || ""] || (item.exercise.supportsSide ? "เลือกก่อนฝึก" : "ไม่แยกข้าง")}</p>{item.instructions && <p>{item.instructions}</p>}</li>)}</ul>
       </div></details>)}{!visible.length && <EmptyState title="ไม่พบแผนที่ตรงกับคำค้น" />}</div>}
     {error && <p className="error-text" role="alert">{error}</p>}

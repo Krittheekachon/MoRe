@@ -4,7 +4,7 @@ async (page) => {
   const fixture = null /*RECORDING_FIXTURE*/;
   const origin = new URL(page.url()).origin;
   if (!fixture || !["localhost", "127.0.0.1"].includes(new URL(origin).hostname)) throw new Error("Local fixtures required");
-  const context = await page.context().browser().newContext({ viewport: { width: 820, height: 1180 }, locale: "th-TH" });
+  const context = await page.context().browser().newContext({ viewport: { width: 820, height: 1180 }, locale: "th-TH", ignoreHTTPSErrors: true });
   let checks = 0;
   const check = (condition, label) => { if (!condition) throw new Error(`Recording check failed: ${label}`); checks++; };
   try {
@@ -13,7 +13,7 @@ async (page) => {
       window.__poseWorkers = { created: 0, terminated: 0 };
       window.Worker = class extends original {
         constructor(...args) { super(...args); window.__poseWorkers.created++; }
-        terminate() { window.__poseWorkers.terminated++; super.terminate(); }
+        terminate() { window.__poseWorkers.terminated++; sessionStorage.setItem("recording-test-worker-terminated", String(window.__poseWorkers.terminated)); super.terminate(); }
       };
       Object.defineProperty(navigator.mediaDevices, "getUserMedia", { value: async () => {
         if (window.__denyCamera) throw new DOMException("Synthetic denial", "NotAllowedError");
@@ -21,7 +21,7 @@ async (page) => {
         const drawing = canvas.getContext("2d"); let tick = 0;
         const timer = setInterval(() => { drawing.fillStyle = tick++ % 2 ? "#405050" : "#406060"; drawing.fillRect(0, 0, 640, 480); }, 100);
         const stream = canvas.captureStream(10); const track = stream.getVideoTracks()[0]; const stop = track.stop.bind(track);
-        track.stop = () => { clearInterval(timer); stop(); };
+        track.stop = () => { clearInterval(timer); stop(); sessionStorage.setItem("recording-test-track-ended", track.readyState); };
         window.__testTrack = track;
         return stream;
       } });
@@ -54,9 +54,11 @@ async (page) => {
     await current.getByRole("button", { name: "เปิดกล้อง", exact: true }).click();
     await current.getByRole("status").filter({ hasText: "ไม่พบร่างกาย" }).waitFor({ timeout: 90000 });
     check(await current.evaluate(() => window.__poseWorkers.created === 2), "reopening uses one new worker");
-    await current.getByRole("button", { name: "ออก", exact: true }).click(); await current.waitForURL("**/patient/exercises");
-    await current.waitForFunction(() => window.__poseWorkers.terminated === 2 && window.__testTrack.readyState === "ended");
-    check(true, "navigation releases camera resources");
+    // Presentation fixture opens the existing summary to exercise its real navigation/lifecycle.
+    await current.locator('dialog[aria-labelledby="saved-set-title"]').evaluate(node => node.showModal());
+    await current.getByRole("link", { name: "ดูความก้าวหน้า", exact: true }).click(); await current.waitForURL("**/patient/progress");
+    const released = await current.evaluate(() => ({ worker: sessionStorage.getItem("recording-test-worker-terminated"), track: sessionStorage.getItem("recording-test-track-ended") }));
+    check(Number(released.worker) >= 2 && released.track === "ended", `summary progress navigation releases camera resources (${released.worker}/${released.track})`);
     await current.goto(url); await current.waitForLoadState("networkidle");
     await current.evaluate(() => { window.__denyCamera = true; });
     await current.getByRole("button", { name: "เปิดกล้อง", exact: true }).click();
@@ -87,6 +89,23 @@ async (page) => {
       check(await current.locator(".pose-primary-actions").evaluate(node => { const rect = node.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight + 1; }), `primary actions stay visible ${width}/${height}/${theme}/${size}`);
       check(await current.locator(".pose-session-metrics").evaluate(node => { const rect = node.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight + 1; }), `counters stay visible ${width}/${height}/${theme}/${size}`);
       check(await current.evaluate(() => { const status = document.querySelector(".pose-camera-frame > .camera-placeholder")?.getBoundingClientRect(); const card = document.querySelector(".pose-control-card")?.getBoundingClientRect(); return !status || status.bottom <= card.top + 1 || status.right <= card.left + 1; }), `idle status does not overlap controls ${width}/${height}/${theme}/${size}`);
+      // Presentation-only fixture: show the no-new-rounds hint without starting/saving a real set.
+      await current.evaluate(() => {
+        const node = document.querySelector(".pose-session");
+        let fiber = node[Object.keys(node).find(key => key.startsWith("__reactFiber"))];
+        while (fiber && fiber.type?.name !== "PoseCamera") fiber = fiber.return;
+        const hooks = []; for (let hook = fiber?.memoizedState; hook; hook = hook.next) hooks.push(hook);
+        const error = hooks.findIndex((hook, index) => hook.memoizedState === "" && hooks[index - 1]?.memoizedState === false && hooks[index + 1]?.queue && hooks[index + 2]?.queue && hooks[index + 2].memoizedState === null);
+        if (error < 0) throw new Error("Camera presentation fixture state not found");
+        const summary = error + 1;
+        hooks[summary + 5].queue.dispatch(true); // hasSlot: no completed round to save
+        hooks[summary - 7].queue.dispatch(true); // running: displays Stop
+      });
+      await current.getByRole("button", { name: "หยุด", exact: true }).waitFor();
+      check(await current.getByRole("button", { name: "หยุด", exact: true }).count() === 1, "hint shown below Stop");
+      check(await current.getByText("ยังไม่มีรอบใหม่ที่ทำครบให้บันทึก", { exact: true }).count() === 0, "removed no-round restriction hint");
+      check(await current.getByRole("button", { name: "บันทึกเซต", exact: true }).isEnabled(), `zero-round save enabled ${width}/${height}/${theme}/${size}`);
+      check(!/\?{3,}|\uFFFD/.test(await current.locator(".pose-session").innerText()), "camera text has no corrupt question marks");
       if (theme === "dark" && size === "xl") await current.screenshot({ path: `output/playwright/recording-camera-${width}.png`, fullPage: true });
     }
     return { checks, responsiveCombinations: 30, inference: "real MediaPipe model on synthetic blank video, no human movement" };

@@ -1,5 +1,9 @@
 # UI Map
 
+Latest: primary-doctor section removed from patient profile and the corresponding row removed from existing doctor patient details. Login doctor accounts and remaining screen layout are unchanged.
+
+Patient progress (2026-10-12): user-provided three references map to `/patient/progress` (overview grouped by Module) and `/patient/progress/exercises/[dailyId]` (one scrollable chart + per-set detail page). Existing themes/navigation remain; unknown trend percentage uses an explicit empty state. See [patient-progress.md](patient-progress.md). Doctor history UI is unchanged.
+
 Patient shell bottom navigation (2026-10-10): below 1024px, pin `.app-sidebar` with native fixed bottom/left/right insets; remove visualViewport pixel-top synchronization and translateY positioning. Existing safe-area padding and main-content bottom clearance remain; desktop keeps its sticky sidebar and camera still hides shell navigation. Verified scrolling/resize on Chromium and desktop WebKit viewports; physical iPad toolbar behavior remains unverified.
 
 Shared logo (2026-10-06): replace raster marks in Login, RegisterIntro, review/completion, staff Login/recovery and existing shell branding with `MoreLogo`. Keep the existing containers, navigation and form composition; registration's existing hidden mobile/iPad mark is now a compact wordmark above its heading as requested. Login uses a 56px symbol, compact pages 32px, navigation 40px (32px on narrow screens); CSS preserves square SVG proportions and theme text. Transparent SVG has no background rectangle, decorative dots, embedded bitmap or filter. Browser screenshots reviewed for mobile dark/XL, iPad light/normal and shared shell branding. Camera composition is unchanged.
@@ -303,3 +307,9 @@ Patient profile (2026-10-11): single-column personal/health cards followed by Se
 Patient profile reference composition supersedes earlier card arrangement: identity and personal field grid, health card, separate primary-doctor card, then centered edit/display/password/logout. Max-width 800px; label-above-value, 1 column on narrow/xl and 2 otherwise. Existing theme tokens and navigation retained.
 
 Profile Edit action now sits at the top right beside the page title, wrapping on narrow screens; supersedes centered bottom Edit placement.
+
+Patient navigation maintenance and device verification: [patient-layout.md](patient-layout.md).
+
+Saved-set modal (2026-10-12): PoseCamera uses SavedSetSummary in the existing native dialog. Mobile bottom sheet / centered tablet-desktop card, theme-aware check, actual saved sets and completed engine rounds, Continue (existing discard/new-set flow), Progress (/patient/progress), Home (/patient). Incomplete saved sets are explicitly labeled incomplete; no counting/save/schema changes.
+
+Saved-set styles are owned by src/components/app/saved-set-summary.module.css and directly imported by SavedSetSummary/PoseCamera, not by system.css. Verify the real Next route styles after direct load and reload, not a manually styled preview.

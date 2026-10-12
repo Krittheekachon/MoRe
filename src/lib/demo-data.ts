@@ -11,13 +11,13 @@ export const exercises = [
 export type ExerciseId = typeof exercises[number]["id"];
 export type PatientProfile = {
   id: string; hn: string; full_name: string; date_of_birth: string; sex: string;
-  phone: string; primary_doctor_name: string; stroke_type: string; stroke_diagnosed_on: string;
+  phone: string; stroke_type: string; stroke_diagnosed_on: string;
   other_conditions: string; medical_notes: string;
 };
 export const patients: PatientProfile[] = [
-  { id: "1", hn: "DEMO-001", full_name: "นายสมชาย ใจดี", date_of_birth: "1964-03-15", sex: "male", phone: "", primary_doctor_name: "แพทย์ประจำตัว", stroke_type: "ischemic", stroke_diagnosed_on: "2026-06-15", other_conditions: "ความดันโลหิตสูง", medical_notes: "" },
-  { id: "2", hn: "DEMO-002", full_name: "นางสมหญิง ใจบุญ", date_of_birth: "1972-07-04", sex: "female", phone: "", primary_doctor_name: "แพทย์ประจำตัว", stroke_type: "hemorrhagic", stroke_diagnosed_on: "2026-05-20", other_conditions: "ไม่มี", medical_notes: "" },
-  { id: "3", hn: "DEMO-003", full_name: "นายวิศวะ แสนดี", date_of_birth: "1984-02-10", sex: "male", phone: "", primary_doctor_name: "แพทย์ประจำตัว", stroke_type: "ischemic", stroke_diagnosed_on: "2026-08-02", other_conditions: "ไม่มี", medical_notes: "" },
+  { id: "1", hn: "DEMO-001", full_name: "นายสมชาย ใจดี", date_of_birth: "1964-03-15", sex: "male", phone: "", stroke_type: "ischemic", stroke_diagnosed_on: "2026-06-15", other_conditions: "ความดันโลหิตสูง", medical_notes: "" },
+  { id: "2", hn: "DEMO-002", full_name: "นางสมหญิง ใจบุญ", date_of_birth: "1972-07-04", sex: "female", phone: "", stroke_type: "hemorrhagic", stroke_diagnosed_on: "2026-05-20", other_conditions: "ไม่มี", medical_notes: "" },
+  { id: "3", hn: "DEMO-003", full_name: "นายวิศวะ แสนดี", date_of_birth: "1984-02-10", sex: "male", phone: "", stroke_type: "ischemic", stroke_diagnosed_on: "2026-08-02", other_conditions: "ไม่มี", medical_notes: "" },
 ];
 export type PlanItem = { exercise_id: ExerciseId; target_sets: number; target_reps_per_set: number; selected_side: string; schedule_type: "daily" | "weekly"; weekdays: number[] };
 export const initialPlan: PlanItem[] = exercises.slice(0, 2).map(e => ({ exercise_id: e.id, target_sets: 3, target_reps_per_set: 10, selected_side: e.side ? "left" : "none", schedule_type: "daily", weekdays: [] }));

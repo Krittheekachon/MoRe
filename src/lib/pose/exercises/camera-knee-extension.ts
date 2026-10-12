@@ -8,7 +8,7 @@ export const legacyV2CameraKneeExtension: ExerciseDefinition = {
   landmarksBySide: { left: [23, 25, 27], right: [24, 26, 28] },
   coordinates: "image-2d",
   start: { min: 75, max: 105 }, departureMin: 120,
-  correctPeak: { min: 160, max: 170 }, stableMs: 200,
+  correctPeak: { min: 160, max: 180 }, stableMs: 200,
   maxGapMs: 1000, minVisibility: 0.6,
 };
 // Preserve the legacy Demo definition; never rewrite old checkpoint/results.
@@ -31,17 +31,33 @@ export const legacyV4CameraKneeExtension: ExerciseDefinition = {
   start: { min: 75, max: 105 }, returned: { min: 75, max: 108 }, departureMin: 125,
   stabilityGraceMs: 250, stabilityEdgeTolerance: 3,
   preparationBySide: {
-    left: { ...legacyV3CameraKneeExtension.preparationBySide!.left, torsoThigh: { min: 70, max: 110 }, postureGuidanceOnly: true, singleSideOrientation: true, lockOrientation: true, graceMs: 250, edgeTolerance: 3 },
-    right: { ...legacyV3CameraKneeExtension.preparationBySide!.right, torsoThigh: { min: 70, max: 110 }, postureGuidanceOnly: true, singleSideOrientation: true, lockOrientation: true, graceMs: 250, edgeTolerance: 3 },
+    left: { ...legacyV3CameraKneeExtension.preparationBySide!.left, torsoThigh: { min: 70, max: 115 }, postureGuidanceOnly: true, singleSideOrientation: true, lockOrientation: true, graceMs: 250, edgeTolerance: 3 },
+    right: { ...legacyV3CameraKneeExtension.preparationBySide!.right, torsoThigh: { min: 70, max: 115 }, postureGuidanceOnly: true, singleSideOrientation: true, lockOrientation: true, graceMs: 250, edgeTolerance: 3 },
   },
 };
 // Wider preparation fixture for camera feedback testing; not clinical criteria.
 // seatedMaxThighTilt is positioning guidance only, not readiness permission.
-export const cameraKneeExtension: ExerciseDefinition = {
+export const legacyV5CameraKneeExtension: ExerciseDefinition = {
   ...legacyV4CameraKneeExtension, criteriaVersion: 5,
   start: { min: 60, max: 115 }, returned: { min: 60, max: 118 },
   preparationBySide: {
     left: { ...legacyV4CameraKneeExtension.preparationBySide!.left, torsoThigh: { min: 90, max: 110 }, maintainTorsoRange: true, seatedMaxThighTilt: 35 },
     right: { ...legacyV4CameraKneeExtension.preparationBySide!.right, torsoThigh: { min: 90, max: 110 }, maintainTorsoRange: true, seatedMaxThighTilt: 35 },
   },
+};
+
+// Current mock thresholds; historical v5 results keep their original definition.
+export const legacyV6CameraKneeExtension: ExerciseDefinition = {
+  ...legacyV5CameraKneeExtension, criteriaVersion: 6,
+  correctPeak: { min: 165, max: 170 },
+  preparationBySide: {
+    left: { ...legacyV5CameraKneeExtension.preparationBySide!.left, torsoThigh: { min: 80, max: 115 } },
+    right: { ...legacyV5CameraKneeExtension.preparationBySide!.right, torsoThigh: { min: 80, max: 115 } },
+  },
+};
+
+// User-adjusted mock peak range; keep previous versions for historical results.
+export const cameraKneeExtension: ExerciseDefinition = {
+  ...legacyV6CameraKneeExtension, criteriaVersion: 7,
+  correctPeak: { min: 155, max: 180 },
 };

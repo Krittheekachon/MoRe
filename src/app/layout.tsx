@@ -1,3 +1,4 @@
+import { parseAudioEnabled, parseVoice } from "@/lib/audio/catalog";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "@fontsource/ibm-plex-sans-thai/thai-400.css";
@@ -30,7 +31,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // server/pre-hydration DOM comparison in test-plan-hydration-browser.js.
   return (
     <html lang="th" data-size={initialSize} data-theme={initialTheme} className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col"><DisplaySettingsProvider initialSize={initialSize} initialTheme={initialTheme}><DemoProvider>{children}</DemoProvider></DisplaySettingsProvider></body>
+      <body className="min-h-full flex flex-col"><DisplaySettingsProvider initialSize={initialSize} initialTheme={initialTheme} initialAudioEnabled={parseAudioEnabled(preferences.get("more-audio-enabled")?.value)} initialVoice={parseVoice(preferences.get("more-audio-voice")?.value)}><DemoProvider>{children}</DemoProvider></DisplaySettingsProvider></body>
     </html>
   );
 }

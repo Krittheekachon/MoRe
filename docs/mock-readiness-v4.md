@@ -101,3 +101,11 @@ The range and maintainTorsoRange flag live in camera-knee-extension.ts; the exis
 
 Readiness 257, legacy preparation 87, countdown 110 and shared recording 17 checks passed, with lint/typecheck. Tests cover both sides, stationary/no rep, valid full repetition/one rep, upper/lower torso violations, stand/sit-like invalid torso sequences, selected shoulder occlusion, preservation of previous repetitions and prohibition of finishing an interrupted round. Human-camera/iPad review remains pending.
 - 2026-10-10 latest mock adjustment: continuous torso range is now 90–110 degrees inclusive, replacing 90–105. The guidance reads the configured bounds. Knee correct peak remains 160–170, and immediate cancellation/rearming behavior is unchanged. Readiness 259 checks (110 accepted, 111 rejected) and feedback 79 passed; lint/typecheck passed. Physical camera review remains pending.
+
+## Mock criteria v6 (2026-10-12)
+ตามคำสั่งผู้ใช้ ลำตัว shoulder–hip–knee 80–110° รวมขอบเขตตลอดรอบ และเข่า correctPeak 165–170° รวมขอบเขต (ค่าก่อนหน้าในโค้ดคือ 160–170° ไม่ใช่ขั้นต่ำ 170°) เกณฑ์เข่าเริ่ม/กลับ เวลา smoothing และ quality คงเดิม แยก legacyV5CameraKneeExtension ไว้ให้ข้อมูลเก่า ไม่เปลี่ยนท่าจริงหรือผลย้อนหลัง
+ไฟล์: camera-knee-extension.ts, camera-test-adapter.ts, demo-seed.ts; scripts/sync-camera-criteria.mjs เพิ่มเฉพาะ checkpoint mock เวอร์ชันปัจจุบันแบบ transaction ไม่เขียนทับค่าเวอร์ชันเก่า ใช้คำสั่ง node scripts/sync-camera-criteria.mjs เมื่ออัปเดตเครื่องอื่น ไม่มี schema migration
+ตรวจจริง: เพิ่ม checkpoint v6 ครบ 6 รายการใน PostgreSQL; readiness 289 checks, engine isolation/overflow 18 assertions, TypeScript และ targeted lint ผ่าน ยังไม่ได้ตรวจด้วยกล้องคนจริงหรือ iPad หลังเปลี่ยนค่า ควรออกจากหน้าฝึกและเปิดใหม่เพื่อโหลดเวอร์ชันใหม่ ไม่ย้ายผล draft/partial เก่าไปเกณฑ์ใหม่อัตโนมัติ
+
+## Mock criteria v7
+User requested correctPeak 155–180° inclusive. cameraKneeExtension now uses criteriaVersion 7; legacyV6CameraKneeExtension retains 165–170°. Adapter and seed support both versions. The current user-edited torso range 80–115° is preserved. sync-camera-criteria added six v7 checkpoints without changing existing results/schema. Readiness 317 checks, preparation 87, engine 18, TypeScript and targeted lint pass. Physical camera/iPad verification remains pending. Reopen the camera page to load new criteria; existing saved sets are not re-evaluated.

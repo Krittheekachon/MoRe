@@ -1,4 +1,11 @@
 .system-app { --brand: var(--ui-primary); --ink: var(--foreground); --muted: var(--ui-muted); --line: var(--ui-line); color: var(--ink); background: var(--background); min-height: 100svh; min-height: 100dvh; font-size: 1rem; line-height: 1.55; letter-spacing: 0; color-scheme: inherit; }
+/* Development-only portal; never changes the shell/nav geometry or scroll. */
+.nav-debug-panel { position: fixed; top: max(4px, env(safe-area-inset-top)); left: 8px; width: min(420px, calc(100vw - 16px)); z-index: 1000; padding: 8px; border: 1px solid var(--ui-line); border-radius: 8px; background: var(--ui-surface); color: var(--foreground); font: 12px/1.4 monospace; }
+.nav-debug-panel span { display: block; }
+.nav-debug-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.nav-debug-actions button { min-height: 32px; padding: 4px 8px; border: 1px solid var(--ui-line); border-radius: 4px; background: var(--ui-soft); cursor: pointer; }
+.nav-debug-panel summary { cursor: pointer; }
+.nav-debug-panel pre, .nav-debug-panel textarea { max-height: 22dvh; width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .system-app *, .review-page * { min-width: 0; }
 .display-settings { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
 .display-settings h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
@@ -319,7 +326,7 @@ html[data-size="xl"] .patient-profile-page .profile-fields { grid-template-colum
 .mobile-menu { display: none; }
 .skip-link { position: absolute; left: 16px; top: -100px; z-index: 30; background: var(--ui-surface); color: var(--brand); padding: 12px 16px; }
 .skip-link:focus { top: 12px; }
-.patient-app .app-navigation { position: fixed; z-index: 10; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px max(8px, calc((100% - 560px) / 2)) calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-bottom: 0; }
+.patient-app .app-navigation { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px max(8px, calc((100% - 560px) / 2)) calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-bottom: 0; }
 .patient-app .app-navigation a { flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 0.8125rem; min-height: 58px; }
 .doctor-app .app-navigation { justify-content: flex-start; }
 @media(min-width: 700px) {
@@ -418,8 +425,7 @@ html[data-size="xl"] .patient-profile-page .profile-fields { grid-template-colum
 .patient-app .app-logout { margin-left: auto; flex-shrink: 0; }
 @media (max-width: 1023px), (hover: none), (pointer: coarse) {
   .patient-app .app-sidebar { display: block; position: fixed; top: auto; bottom: 0; left: 0; right: 0; margin: 0; transform: none; z-index: 30; background: var(--ui-surface); }
-  .patient-app .app-navigation { position: static; width: 100%; }
-  .patient-app .app-main { padding-bottom: calc(var(--patient-navigation-height, calc(72px + env(safe-area-inset-bottom))) + 24px); }
+  .patient-app .app-navigation { width: 100%; }
   .patient-app .app-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
   .patient-app .app-topbar > .app-brand { grid-column: 1; grid-row: 1; min-width: 0; align-self: center; }
   .patient-app .app-topbar > .app-logout { grid-column: 2; grid-row: 1; justify-self: end; margin: 0; }
@@ -452,3 +458,11 @@ html[data-size="xl"] .patient-profile-page .profile-fields { grid-template-colum
 .developer-controls { padding: 12px 0; }
 .developer-controls table { width: 100%; }
 .developer-controls .action-row { gap: 16px; }
+/* Test tools stay in document flow; shell already reserves bottom-nav safe area. */
+.patient-test-tools { margin-top: 24px; padding: 20px; display: grid; gap: 16px; overflow-wrap: anywhere; }
+.patient-test-tools label { display: grid; gap: 8px; }
+.patient-test-tools input, .patient-test-tools select { min-width: 0; width: 100%; min-height: 48px; }
+.patient-test-tools .action-row { flex-wrap: wrap; gap: 12px; }
+.test-date-banner { padding: 12px 16px; border: 1px solid var(--brand); background: var(--ui-primary-soft); color: var(--foreground); }
+.patient-app:has(.pose-session) .patient-test-tools { position: relative; margin-top: 24px; z-index: 60; background: var(--ui-surface); }
+.patient-app:has(.pose-session) .test-date-banner { position: fixed; top: 100px; left: 16px; z-index: 60; }

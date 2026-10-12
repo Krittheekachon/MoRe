@@ -41,7 +41,7 @@ npx.cmd --no-install tsc --noEmit
 npm.cmd run dev
 ```
 
-เครื่องใหม่จะได้ 20 ตารางตาม DBML พร้อม `_prisma_migrations` สำหรับประวัติของ Prisma แต่ยังไม่มีข้อมูล application ถ้าฐานข้อมูลมีตารางเดิมที่ไม่อยู่ในประวัติ migration ให้หยุดตรวจ schema และวางแผน baseline ก่อน ไม่ใช้ reset หรือเดาว่าลบได้
+เครื่องใหม่จะได้ 21 ตารางตาม DBML (รวม primary_doctors ที่อนุมัติ 2026-10-12) พร้อม `_prisma_migrations` สำหรับประวัติของ Prisma แต่ยังไม่มีข้อมูล application ถ้าฐานข้อมูลมีตารางเดิมที่ไม่อยู่ในประวัติ migration ให้หยุดตรวจ schema และวางแผน baseline ก่อน ไม่ใช้ reset หรือเดาว่าลบได้
 
 ## เปิดและหยุดโดยรักษาข้อมูล
 
@@ -148,3 +148,5 @@ npx.cmd --no-install prisma migrate status --config prisma7.config.ts
 - `format`, `validate`, `generate`, `migrate status` และ `migrate diff` ผ่าน; schema ที่ Prisma แสดงได้ไม่มี drift
 - query ผ่าน server singleton และ PostgreSQL adapter: `SELECT 1` ได้ `ok=1`, ฐานข้อมูล `more`, PostgreSQL `17.11`; query model `user.count()` ได้ 0 และ import ซ้ำใช้ client เดิม การทดสอบนอก Next ใช้ตัวโหลด TypeScript ที่ติดตั้งมากับเครื่องมือและ Next server marker แบบว่างสำหรับ process ทดสอบเท่านั้น
 - TypeScript `tsc --noEmit`, `npm run lint`, production `npm run build` และ `git diff --check` ผ่าน ไม่มีการนำ credentials ไปแสดงในผลตรวจ
+
+Latest: run migration 20261012010000_remove_primary_doctor (removes primary-doctor data only). Keep old migrations; regenerate Prisma Client and restart server.

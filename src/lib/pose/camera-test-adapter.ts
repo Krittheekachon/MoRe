@@ -1,6 +1,6 @@
 import type { PoseCriteria, Side } from "./types";
 import { bindExerciseCriteria } from "./exercise-definition";
-import { cameraKneeExtension, legacyCameraKneeExtension, legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension } from "./exercises/camera-knee-extension";
+import { cameraKneeExtension, legacyCameraKneeExtension, legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension, legacyV5CameraKneeExtension, legacyV6CameraKneeExtension } from "./exercises/camera-knee-extension";
 import { exerciseDefinitions } from "./exercises/registry";
 
 // Software fixture only. Never register these values in approved-criteria.ts.
@@ -12,7 +12,7 @@ export const cameraTestThresholds = { start, departureMin, correctPeak, stableMs
 // Angle/version/checkpoint bindings and clinical definitions remain untouched.
 export function refreshMockCameraPolicy(criteria: PoseCriteria): PoseCriteria {
   if (criteria.exerciseCode === "demo-knee-extension" && criteria.criteriaVersion === 5 && criteria.preparation) {
-    const config = cameraKneeExtension.preparationBySide![criteria.preparation.side];
+    const config = legacyV5CameraKneeExtension.preparationBySide![criteria.preparation.side];
     if (criteria.preparation.maintainTorsoRange && criteria.preparation.torsoThigh.min === config.torsoThigh.min && criteria.preparation.torsoThigh.max === config.torsoThigh.max && criteria.preparation.seatedMaxThighTilt !== undefined) return criteria;
     return { ...criteria, preparation: { ...criteria.preparation, torsoThigh: { ...config.torsoThigh }, maintainTorsoRange: true, seatedMaxThighTilt: config.seatedMaxThighTilt } };
   }
@@ -30,6 +30,6 @@ export function cameraCriteriaSignature(criteria: PoseCriteria): string {
 
 export function cameraTestCriteria(exerciseCode: string, side: Side, metricId: number, checkpointIds: PoseCriteria["checkpointIds"], version = cameraKneeExtension.criteriaVersion): PoseCriteria {
   if (exerciseCode !== cameraKneeExtension.exerciseCode) throw new Error("Camera test adapter cannot configure a real exercise");
-  if (![1, 2, 3, 4, cameraKneeExtension.criteriaVersion].includes(version)) throw new Error("Unsupported mock criteria version");
-  return bindExerciseCriteria(version === 1 ? legacyCameraKneeExtension : version === 2 ? legacyV2CameraKneeExtension : version === 3 ? legacyV3CameraKneeExtension : version === 4 ? legacyV4CameraKneeExtension : exerciseDefinitions[exerciseCode], side, { metricId, checkpointIds });
+  if (![1, 2, 3, 4, 5, 6, cameraKneeExtension.criteriaVersion].includes(version)) throw new Error("Unsupported mock criteria version");
+  return bindExerciseCriteria(version === 1 ? legacyCameraKneeExtension : version === 2 ? legacyV2CameraKneeExtension : version === 3 ? legacyV3CameraKneeExtension : version === 4 ? legacyV4CameraKneeExtension : version === 5 ? legacyV5CameraKneeExtension : version === 6 ? legacyV6CameraKneeExtension : exerciseDefinitions[exerciseCode], side, { metricId, checkpointIds });
 }

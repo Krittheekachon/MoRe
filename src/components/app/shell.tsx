@@ -4,10 +4,11 @@ import { MoreLogo } from "@/components/ui/more-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, ArrowLeft, Settings, X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { useDemo } from "./demo-provider";
 import { LogoutButton } from "./logout-button";
 import type { PatientProfile } from "@/lib/demo-data";
+import { NavDebug } from "./nav-debug";
 
 export function AppShell({ children, doctor = false, patientProfile, demo = false }: { children: ReactNode; doctor?: boolean; patientProfile?: PatientProfile; demo?: boolean }) {
   const path = usePathname();
@@ -32,6 +33,7 @@ export function AppShell({ children, doctor = false, patientProfile, demo = fals
     ? [{ href: "/doctor", label: "ผู้ป่วย", icon: UsersRound }, { href: "/doctor/templates", label: "แผนกลาง", icon: ClipboardList }]
     : [{ href: "/patient", label: "หน้าหลัก", icon: Home }, { href: "/patient/exercises", label: "ท่าฝึก", icon: ClipboardList }, { href: "/patient/progress", label: "ความก้าวหน้า", icon: CalendarDays }, { href: "/patient/profile", label: "โปรไฟล์", icon: UserRound }];
   return <div ref={shellRef} className={`system-app ${doctor ? "doctor-app" : "patient-app"} ${cameraPage ? "camera-workspace" : ""}`}>
+    {process.env.NODE_ENV === "development" && !doctor && !cameraPage && <Suspense fallback={null}><NavDebug key={path} /></Suspense>}
     <a className="skip-link" href="#workspace-content">ข้ามไปเนื้อหา</a>
     <header className="app-topbar">
       {doctor && <button ref={menuRef} className="icon-command mobile-menu" aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} title={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={22} /> : <Settings size={22} />}</button>}

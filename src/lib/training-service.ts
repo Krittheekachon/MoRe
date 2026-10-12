@@ -6,6 +6,8 @@ import { AccountError } from "./account-validation";
 import { cameraTestEnabled, demoEnabled, demoExerciseCode, isDemoPatient } from "./demo-policy";
 import { mockDemoTemplateCode } from "./mock-plan";
 import { trainingDay } from "./training-calendar";
+import { routineNow } from "./routine-clock";
+import { routineProgress } from "./routine-progress";
 import type { DailyTraining, DailyTrainingItem, PatientTrainingPlan, TrainingExercise, TrainingHistory, TrainingTemplate } from "./training-types";
 
 const exerciseRelations = { module: true } as const;
@@ -71,6 +73,7 @@ export async function readTrainingPlan(patientId: number) {
 }
 
 export async function selectTrainingTemplate(patientId: number, templateId: number, now = new Date(), configuredBy = patientId, test?: { sets: number; reps: number; side: "left" | "right" }) {
+  now = await routineNow(patientId, now);
   const allowed = await listTrainingTemplates(patientId);
   if (!allowed.some(template => template.id === templateId)) throw new AccountError("แผนนี้ยังไม่พร้อมใช้งาน", 422);
   if (test && (!cameraTestEnabled() || allowed.find(t => t.id === templateId)?.code !== mockDemoTemplateCode || !Number.isInteger(test.sets) || test.sets < 1 || test.sets > 20 || !Number.isInteger(test.reps) || test.reps < 1 || test.reps > 100 || !["left", "right"].includes(test.side))) throw new AccountError("Invalid camera test plan", 422);
@@ -132,19 +135,21 @@ async function ensureTrainingDay(patientId: number, now: Date) {
 const dailyRelations = {
   exercise: { include: exerciseRelations }, day: true,
   planExercise: { select: { plan_id: true, instruction_override: true } },
-  sessions: { select: { _count: { select: { sets: { where: { status: "saved" } } } } } },
+  sessions: { select: { cameraChecks: { orderBy: { id: "desc" }, take: 1, select: { selected_side: true } }, sets: { where: { status: "saved" }, select: { _count: { select: { repetitions: true } }, repetitions: { take: 1, select: { selected_side: true } } } } } },
 } as const;
 type Daily = Prisma.DailyExerciseGetPayload<{ include: typeof dailyRelations }>;
 
 function dailyDTO(item: Daily, today: string): DailyTrainingItem {
-  const savedSets = item.sessions.reduce((sum, session) => sum + session._count.sets, 0);
-  const status = savedSets >= item.target_sets ? "completed" : savedSets > 0 || item.started_at ? "in_progress" : "not_started";
-  return { id: item.id, planId: item.planExercise.plan_id, exercise: exerciseDTO(item.exercise), side: item.selected_side, targetSets: item.target_sets, targetReps: item.target_reps_per_set, savedSets, status,
+  const progress = routineProgress(item.target_sets,item.target_reps_per_set,item.selected_side,item.sessions.flatMap(session=>session.sets.map(set=>({count:set._count.repetitions,side:set.repetitions[0]?.selected_side ?? session.cameraChecks[0]?.selected_side ?? item.selected_side}))));
+  const { savedSets, completedSets, progressSets } = progress;
+  const status = progress.completed ? "completed" : savedSets > 0 || item.started_at ? "in_progress" : "not_started";
+  return { id: item.id, planId: item.planExercise.plan_id, exercise: exerciseDTO(item.exercise), side: item.selected_side, targetSets: progress.requiredSets, targetReps: item.target_reps_per_set, savedSets, completedSets, progressSets, status,
     instructions: item.exercise.code === demoExerciseCode && cameraTestEnabled() ? `โหมดทดสอบกล้อง · ขา${item.selected_side === "right" ? "ขวา" : "ซ้าย"} ${item.target_sets} เซต × ${item.target_reps_per_set} ครั้ง · เริ่ม 75–105° เหยียด ≥120° แล้วกลับ · เกณฑ์ทดสอบซอฟต์แวร์เท่านั้น` : item.planExercise.instruction_override,
-    canStart: item.day.local_date.toISOString().slice(0, 10) === today && !item.day.is_closed && savedSets < item.target_sets && item.exercise.is_active && item.exercise.module.is_active };
+    canStart: !progress.completed && item.day.local_date.toISOString().slice(0, 10) === today && !item.day.is_closed && item.exercise.is_active && item.exercise.module.is_active };
 }
 
 export async function readDailyTraining(patientId: number, now = new Date()): Promise<DailyTraining> {
+  now = await routineNow(patientId, now);
   const today = trainingDay(now);
   const dayId = await ensureTrainingDay(patientId, now);
   const records = dayId ? await prisma.dailyExercise.findMany({ where: { rehabilitation_day_id: dayId, day: { patient_id: patientId } }, orderBy: { id: "asc" }, include: dailyRelations }) : [];
@@ -153,11 +158,13 @@ export async function readDailyTraining(patientId: number, now = new Date()): Pr
   const totalSets = items.reduce((sum, item) => sum + item.targetSets, 0);
   const savedSets = items.reduce((sum, item) => sum + item.savedSets, 0);
   const activePlan = await readTrainingPlan(patientId);
-  return { date: today.date, dayId, items, totalSets, savedSets, percent: totalSets ? Math.min(100, Math.round(items.reduce((sum, item) => sum + Math.min(item.savedSets, item.targetSets), 0) / totalSets * 100)) : 0,
+  return { date: today.date, dayId, items, totalSets, savedSets, percent: totalSets ? Math.min(100, Math.round(items.reduce((sum, item) => sum + (item.progressSets ?? 0), 0) / totalSets * 100)) : 0,
+    status: items.length && items.every(item=>item.status === "completed") ? "completed" : items.some(item=>item.status !== "not_started") ? "in_progress" : "not_started",
     activePlan, snapshotFromPreviousPlan: items.some(item => item.planId !== activePlan?.id) };
 }
 
 export async function readCameraAssignment(patientId: number, dailyId: number, code?: string, guide = false, now = new Date()) {
+  now = await routineNow(patientId, now);
   const item = await prisma.dailyExercise.findFirst({ where: { id: dailyId, day: { patient_id: patientId }, ...(code ? { exercise: { code } } : {}) }, include: dailyRelations });
   if (!item) throw new AccountError("ไม่พบรายการฝึก", 404);
   if (item.exercise.code === demoExerciseCode && !cameraTestEnabled() && (!demoEnabled() || !await isDemoPatient(patientId))) throw new AccountError("โหมดทดสอบกล้องปิดอยู่", 422);
@@ -168,6 +175,7 @@ export async function readCameraAssignment(patientId: number, dailyId: number, c
 }
 
 export async function readTrainingHistory(patientId: number, now = new Date()): Promise<TrainingHistory> {
+  now = await routineNow(patientId, now);
   const daily = await readDailyTraining(patientId, now);
   const testDay = daily.items.length > 0 && daily.items.every(item => item.exercise.code === demoExerciseCode);
   const today = trainingDay(now).storedDate;
@@ -182,4 +190,18 @@ export async function readTrainingHistory(patientId: number, now = new Date()): 
     return { date, count: records.filter(set => set.session.dailyExercise.day.local_date.toISOString().slice(0, 10) === date).length };
   });
   return { week, recent };
+}
+
+export async function readRoutineHistory(patientId: number) {
+  const days = await prisma.rehabilitationDay.findMany({ where: { patient_id: patientId }, orderBy: { local_date: "desc" }, take: 90,
+    include: { dailyExercises: { include: dailyRelations } } });
+  return days.map(day => {
+    const date = day.local_date.toISOString().slice(0,10);
+    const items = day.dailyExercises.map(item=>dailyDTO(item,date));
+    const total = items.reduce((sum,item)=>sum+item.targetSets,0);
+    const completed = items.length>0 && items.every(item=>item.status==="completed");
+    return { date, status: completed ? "completed" as const : items.some(item=>item.status!=="not_started") ? "in_progress" as const : "not_started" as const,
+      percent: total ? Math.round(items.reduce((sum,item)=>sum+(item.progressSets ?? 0),0)/total*100) : 0,
+      completedRoutines: completed ? 1 : 0, targetSets: total, completedSets: items.reduce((sum,item)=>sum+(item.completedSets ?? 0),0) };
+  });
 }

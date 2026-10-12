@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { constantEqual, sessionBinding } from "./account-security";
 import type { PatientProfile } from "./demo-data";
 
-type AccountSession = { developer?: boolean; userId?: number; binding?: string };
+type AccountSession = { developer?: boolean; userId?: number; binding?: string; routineTestDate?: string };
 type RegistrationSession = { lookup?: string; encryptedId?: string; hash?: string; changeRequired?: boolean; completed?: boolean };
 
 function options(cookieName: string, ttl: number) {
@@ -34,15 +34,16 @@ export async function currentAccount() {
 export async function establishSession(id: number, hash: string) {
   const session = await accountSession();
   delete session.developer;
+  delete session.routineTestDate;
   session.userId = id;
   session.binding = sessionBinding(id, hash);
   await session.save();
 }
 
 export async function readOwnProfile(id: number): Promise<PatientProfile | null> {
-  const p = await prisma.patientProfile.findUnique({ where: { patient_id: id }, select: { patient_id: true, hn: true, full_name: true, date_of_birth: true, sex: true, phone: true, primary_doctor_name: true, stroke_type: true, stroke_diagnosed_on: true, other_conditions: true } });
+  const p = await prisma.patientProfile.findUnique({ where: { patient_id: id }, select: { patient_id: true, hn: true, full_name: true, date_of_birth: true, sex: true, phone: true, stroke_type: true, stroke_diagnosed_on: true, other_conditions: true } });
   if (!p) return null;
-  return { id: String(p.patient_id), hn: p.hn || "", full_name: p.full_name, date_of_birth: p.date_of_birth?.toISOString().slice(0, 10) || "", sex: p.sex || "unspecified", phone: p.phone || "", primary_doctor_name: p.primary_doctor_name || "", stroke_type: p.stroke_type || "unspecified", stroke_diagnosed_on: p.stroke_diagnosed_on?.toISOString().slice(0, 10) || "", other_conditions: p.other_conditions || "", medical_notes: "" };
+  return { id: String(p.patient_id), hn: p.hn || "", full_name: p.full_name, date_of_birth: p.date_of_birth?.toISOString().slice(0, 10) || "", sex: p.sex || "unspecified", phone: p.phone || "", stroke_type: p.stroke_type || "unspecified", stroke_diagnosed_on: p.stroke_diagnosed_on?.toISOString().slice(0, 10) || "", other_conditions: p.other_conditions || "", medical_notes: "" };
 }
 
 export async function requirePatient(allowPasswordChange = false) {
@@ -52,7 +53,7 @@ export async function requirePatient(allowPasswordChange = false) {
   if (user.password_change_required) {
     if (!allowPasswordChange) redirect("/patient/change-password");
     // Do not serialize patient health/profile fields before the required change.
-    return { id: String(user.id), hn: "", full_name: "ผู้ป่วย", date_of_birth: "", sex: "unspecified", phone: "", primary_doctor_name: "", stroke_type: "unspecified", stroke_diagnosed_on: "", other_conditions: "", medical_notes: "" } satisfies PatientProfile;
+    return { id: String(user.id), hn: "", full_name: "ผู้ป่วย", date_of_birth: "", sex: "unspecified", phone: "", stroke_type: "unspecified", stroke_diagnosed_on: "", other_conditions: "", medical_notes: "" } satisfies PatientProfile;
   }
   const profile = await readOwnProfile(user.id);
   if (!profile) notFound();

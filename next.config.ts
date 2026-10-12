@@ -8,6 +8,10 @@ const localAddresses = Object.values(networkInterfaces()).flatMap((entries) =>
 );
 
 const nextConfig: NextConfig = {
+  // Public diagnostic ID only; no environment secrets are exported.
+  env: process.env.NODE_ENV === "development" ? {
+    NEXT_PUBLIC_NAV_DEBUG_BUILD_ID: `nav-debug-v1/dev-config-${new Date().toISOString()}`,
+  } : {},
   distDir: process.env.MORE_DEMO_MODE === "1" ? ".next-demo" : ".next",
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1", ...localAddresses],

@@ -1,0 +1,29 @@
+.page { width: 100%; max-width: 960px; margin-inline: auto; display: grid; gap: 24px; overflow-wrap: anywhere; }
+.page h2 { font-size: 1.25rem; } .page h3 { font-size: 1.0625rem; } .page p { line-height: 1.6; }
+.hero,.streak,.module,.chart,.result { border: 1px solid var(--line); background: var(--ui-surface); }
+.hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; border-radius: 20px; }
+.ring { width: 180px; height: 180px; border-radius: 50%; padding: 9px; flex-shrink: 0; }
+.ring > div { background: var(--ui-surface); border-radius: 50%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 8px; }
+.ring strong { font-size: 2rem; }.ring span { font-size: .875rem; }
+.streak { display: flex; gap: 16px; padding: 20px; border-radius: 16px; }.streak p { color: var(--muted); }
+.filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }.filters label { display: grid; gap: 8px; }.filters > div { display: flex; flex-wrap: wrap; gap: 8px; }.filters [aria-current] { border-color: var(--brand); font-weight: 700; }
+.summary, .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }.summary { margin: 12px 0 20px; color: var(--brand); font-weight: 600; }
+.modules { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }.module { border-radius: 18px; padding: 20px; min-width: 0; }.module header { border-bottom: 1px solid var(--line); padding-bottom: 12px; }.module small { color: var(--muted); }.exercise { padding: 18px 0; border-bottom: 1px solid var(--line); }.exercise:last-child { border: 0; padding-bottom: 0; }.row a, .back { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; }.badge { border: 1px solid var(--brand); border-radius: 24px; padding: 4px 12px; font-size: .875rem; }
+.sectionNav { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 12px; }.sectionNav a { text-align: center; padding: 14px; min-height: 48px; }
+.chart,.result { padding: 24px; border-radius: 18px; }.chart svg { width: 100%; max-height: 380px; margin: 16px 0; color: var(--foreground); }.chart line { stroke: var(--muted); }.chart polyline { stroke: var(--brand); stroke-width: 2; fill: none; }.chart circle { fill: var(--brand); }.chart text { fill: currentColor; font-size: 13px; }
+.ranges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }.ranges button { background: var(--ui-surface); color: var(--foreground); border: 1px solid var(--line); border-radius: 8px; min-height: 48px; padding: 8px 16px; font: inherit; }.ranges [aria-pressed=true] { border-color: var(--brand); background: var(--ui-primary-soft); font-weight: 700; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,180px),1fr)); gap: 12px; margin-block: 16px; }.metrics > div { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 8px; }.metrics span,.metrics small { color: var(--muted); }.metrics strong { font-size: 1.5rem; }.metrics .noTrend { font-size: 1rem; }
+.set { border-top: 1px solid var(--line); padding: 20px 0; }.set progress { width: 100%; height: 14px; accent-color: var(--brand); margin-block: 12px; appearance: none; border: 0; border-radius: 8px; overflow: hidden; background: var(--ui-line); }.set progress::-webkit-progress-bar { background: var(--ui-line); }.set progress::-webkit-progress-value { background: var(--brand); }.set progress::-moz-progress-bar { background: var(--brand); }.set small { color: var(--muted); }
+@media(max-width:599px) { .hero { flex-direction: column; text-align: center; }.hero,.chart,.result { padding: 18px; }.metrics { grid-template-columns: 1fr; }.filters label { width: 100%; }.filters input { min-width: 0; width: 100%; } }
+
+.legend { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 16px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.countMarker,.correctMarker { width: 24px; border-top: 3px solid var(--brand); }
+.correctMarker { border-color: var(--foreground); border-top-style: dashed; }
+.chart .correctSeries polyline { stroke: var(--foreground); stroke-dasharray: 7 4; }
+.chart .correctSeries circle { fill: var(--foreground); }
+
+.history { display: grid; gap: 12px; margin-top: 16px; }
+.historyItem { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--ui-surface); }
+.historyItem > div { min-width: 0; flex: 1 1 220px; }
+.historyItem a { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; }

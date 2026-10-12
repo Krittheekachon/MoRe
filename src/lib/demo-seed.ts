@@ -6,7 +6,7 @@ import { prisma } from "./prisma";
 import { encryptNationalId, hashPassword, nationalIdLookup } from "./account-security";
 import { demoDoctorLoginName, demoExerciseCode } from "./demo-policy";
 import { mockDemoTemplateCode } from "./mock-plan";
-import { cameraKneeExtension, legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension } from "./pose/exercises/camera-knee-extension";
+import { cameraKneeExtension, legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension, legacyV5CameraKneeExtension, legacyV6CameraKneeExtension } from "./pose/exercises/camera-knee-extension";
 
 type Credentials = { doctor: { loginName: string; password: string }; patients: { nationalId: string; password: string; hn: string; name: string }[] };
 export async function seedDemo() {
@@ -62,7 +62,7 @@ export async function seedDemo() {
         stage = "metrics";
         const metric = await tx.exerciseAngleMetric.upsert({ where: { exercise_id_metric_code_definition_version: { exercise_id: exercise.id, metric_code: `demo-${side}`, definition_version: 1 } }, update: {}, create: { exercise_id: exercise.id, metric_code: `demo-${side}`, label_th: `DEMO ${side} knee`, landmark_a: `${side.toUpperCase()}_HIP`, landmark_b: `${side.toUpperCase()}_KNEE`, landmark_c: `${side.toUpperCase()}_ANKLE`, is_primary: true } });
         for (const phase of ["start", "peak", "return"]) await tx.exerciseCheckpoint.upsert({ where: { exercise_id_code_criteria_version: { exercise_id: exercise.id, code: `demo-${side}-${phase}`, criteria_version: 1 } }, update: {}, create: { exercise_id: exercise.id, metric_id: metric.id, code: `demo-${side}-${phase}`, phase, min_value: phase === "peak" ? 140 : 75, max_value: phase === "peak" ? 180 : 105, feedback_code: "demo_only", instruction_th: "DEMO engineering fixture; not clinical" } });
-        for (const mockDefinition of [legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension, cameraKneeExtension]) for (const phase of ["start", "peak", "return"]) {
+        for (const mockDefinition of [legacyV2CameraKneeExtension, legacyV3CameraKneeExtension, legacyV4CameraKneeExtension, legacyV5CameraKneeExtension, legacyV6CameraKneeExtension, cameraKneeExtension]) for (const phase of ["start", "peak", "return"]) {
           const range = phase === "peak" ? mockDefinition.correctPeak : phase === "return" ? mockDefinition.returned ?? mockDefinition.start : mockDefinition.start;
           await tx.exerciseCheckpoint.upsert({ where: { exercise_id_code_criteria_version: { exercise_id: exercise.id, code: `demo-${side}-${phase}`, criteria_version: mockDefinition.criteriaVersion } }, update: {}, create: { exercise_id: exercise.id, metric_id: metric.id, code: `demo-${side}-${phase}`, criteria_version: mockDefinition.criteriaVersion, phase, min_value: range.min, max_value: range.max, feedback_code: "demo_only", instruction_th: "Camera mock only; not clinical" } });
         }
