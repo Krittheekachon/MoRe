@@ -55,7 +55,20 @@ export async function staffPatients(staff: Staff) {
   });
 }
 export async function staffTemplates(staff: Staff) {
-  return prisma.rehabilitationTemplate.findMany({ where: { is_active: true, ...(staff.demo ? { created_by: staff.id, template_code: { startsWith: "DEMO-" } } : { NOT: { template_code: { startsWith: "DEMO-" } }, exercises: { none: { exercise: { code: demoExerciseCode } } } }) }, orderBy: { id: "desc" }, include: { exercises: { include: { weekdays: true, exercise: { select: { name_th: true } } } } } });
+  return prisma.rehabilitationTemplate.findMany({
+    where: {
+      is_active: true,
+      ...(staff.demo
+        ? { created_by: staff.id, template_code: { startsWith: "DEMO-" } }
+        : { NOT: { template_code: { startsWith: "DEMO-" } }, exercises: { none: { exercise: { code: demoExerciseCode } } } }
+      ),
+    },
+    orderBy: { id: "desc" },
+    include: {
+      creator: { select: { display_name: true, role: true } },
+      exercises: { include: { weekdays: true, exercise: { select: { name_th: true } } } },
+    },
+  });
 }
 export async function staffCatalog(staff: Staff) {
   return prisma.exercise.findMany({ where: { is_active: true, module: { is_active: true }, code: staff.demo ? demoExerciseCode : { not: demoExerciseCode } }, orderBy: { sort_order: "asc" }, select: { id: true, name_th: true, supports_side_selection: true } });
