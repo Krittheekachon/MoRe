@@ -14,7 +14,10 @@ import { calculateAge } from "@/lib/birth-date";
 
 export const metadata = { title: "แพทย์และนักกายภาพ | MoRe" };
 export default async function DoctorPage({ params }: { params: Promise<{ segments?: string[] }> }) {
-  const staff = await staffIdentity().catch(error => { if (error instanceof AccountError && error.status === 401) redirect("/doctor/login"); notFound(); });
+  const staff = await staffIdentity().catch(error => {
+    if (error instanceof AccountError && (error.status === 401 || error.status === 403)) redirect("/doctor/login");
+    notFound();
+  });
   const segments = (await params).segments || []; const path = segments.join("/"); let content;
   let patients: Awaited<ReturnType<typeof staffPatients>> = [];
   let templates: Awaited<ReturnType<typeof staffTemplates>> = [];
