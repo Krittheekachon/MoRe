@@ -133,7 +133,46 @@ export function ProfileEdit({ initialProfile }: { initialProfile: PatientProfile
     } catch (cause) { setError(cause instanceof Error ? cause.message : "กรุณาลองใหม่"); }
     finally { setPending(false); }
   }
-  return <><PageHeading title="แก้ไขข้อมูลส่วนตัว" back="/patient/profile" /><form className="form-stack" onSubmit={save}><label>ชื่อ - นามสกุล<input required maxLength={200} value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })} /></label><label>วันเกิด<input required type="date" max={dateInThailand()} value={profile.date_of_birth} onChange={e => setProfile({ ...profile, date_of_birth: e.target.value })} /></label><label>เพศ<select value={profile.sex} onChange={e => setProfile({ ...profile, sex: e.target.value })}>{Object.entries(sexLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>โทรศัพท์<input type="tel" maxLength={20} value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} /></label><label>โรคประจำตัวอื่น<textarea maxLength={10000} value={profile.other_conditions} onChange={e => setProfile({ ...profile, other_conditions: e.target.value })} /></label>{error && <p role="alert" className="error-text">{error}</p>}<div className="action-row"><button className="command primary" disabled={pending}><Save size={18} />{pending ? "กำลังบันทึก…" : "บันทึกข้อมูล"}</button><Link className="command" href="/patient/profile">ยกเลิก</Link></div>{saved && <p className="notice" role="status">บันทึกข้อมูลเรียบร้อยแล้ว</p>}</form></>;
+  return (
+    <>
+      <PageHeading title="แก้ไขข้อมูลส่วนตัว" back="/patient/profile" />
+      <form className="form-stack patient-form-card" onSubmit={save}>
+        <div className="form-fields-grid">
+          <label>
+            <span>ชื่อ - นามสกุล</span>
+            <input required maxLength={200} value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })} />
+          </label>
+          <label>
+            <span>วันเกิด</span>
+            <input required type="date" max={dateInThailand()} value={profile.date_of_birth} onChange={e => setProfile({ ...profile, date_of_birth: e.target.value })} />
+          </label>
+          <label>
+            <span>เพศ</span>
+            <select value={profile.sex} onChange={e => setProfile({ ...profile, sex: e.target.value })}>
+              {Object.entries(sexLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>โทรศัพท์</span>
+            <input type="tel" maxLength={20} value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
+          </label>
+          <label className="field-full-width">
+            <span>โรคประจำตัวอื่น</span>
+            <textarea maxLength={10000} value={profile.other_conditions} onChange={e => setProfile({ ...profile, other_conditions: e.target.value })} />
+          </label>
+        </div>
+        {error && <p role="alert" className="error-text">{error}</p>}
+        <div className="action-row">
+          <button className="command primary" disabled={pending}>
+            <Save size={18} />
+            <span>{pending ? "กำลังบันทึก…" : "บันทึกข้อมูล"}</span>
+          </button>
+          <Link className="command" href="/patient/profile">ยกเลิก</Link>
+        </div>
+        {saved && <p className="notice" role="status">บันทึกข้อมูลเรียบร้อยแล้ว</p>}
+      </form>
+    </>
+  );
 }
 export function PasswordForm() {
   const router = useRouter();
@@ -148,5 +187,34 @@ export function PasswordForm() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "กรุณาลองใหม่"); }
     finally { setPending(false); }
   }
-  return <><PageHeading title="เปลี่ยนรหัสผ่าน" back="/patient/profile" /><form className="form-stack" onSubmit={submit}><label>รหัสผ่านปัจจุบัน<input name="current" type="password" required maxLength={128} autoComplete="current-password" /></label><label>รหัสผ่านใหม่<input name="new" type="password" required minLength={8} maxLength={128} autoComplete="new-password" /></label><label>ยืนยันรหัสผ่านใหม่<input name="confirm" type="password" required minLength={8} maxLength={128} autoComplete="new-password" /></label>{error && <p role="alert" className="error-text">{error}</p>}<div className="action-row"><button className="command primary" disabled={pending}><KeyRound size={18} />{pending ? "กำลังบันทึก…" : "บันทึกรหัสผ่าน"}</button></div>{success && <p className="notice" role="status">เปลี่ยนรหัสผ่านเรียบร้อยแล้ว</p>}</form></>;
+  return (
+    <>
+      <PageHeading title="เปลี่ยนรหัสผ่าน" back="/patient/profile" />
+      <form className="form-stack patient-form-card" onSubmit={submit}>
+        <div className="form-fields-column">
+          <label>
+            <span>รหัสผ่านปัจจุบัน</span>
+            <input name="current" type="password" required maxLength={128} autoComplete="current-password" placeholder="กรอกรหัสผ่านปัจจุบัน" />
+          </label>
+          <label>
+            <span>รหัสผ่านใหม่</span>
+            <input name="new" type="password" required minLength={8} maxLength={128} autoComplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
+          </label>
+          <label>
+            <span>ยืนยันรหัสผ่านใหม่</span>
+            <input name="confirm" type="password" required minLength={8} maxLength={128} autoComplete="new-password" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" />
+          </label>
+        </div>
+        {error && <p role="alert" className="error-text">{error}</p>}
+        <div className="action-row">
+          <button className="command primary" disabled={pending}>
+            <KeyRound size={18} />
+            <span>{pending ? "กำลังบันทึก…" : "บันทึกรหัสผ่าน"}</span>
+          </button>
+          <Link className="command" href="/patient/profile">ยกเลิก</Link>
+        </div>
+        {success && <p className="notice" role="status">เปลี่ยนรหัสผ่านเรียบร้อยแล้ว</p>}
+      </form>
+    </>
+  );
 }

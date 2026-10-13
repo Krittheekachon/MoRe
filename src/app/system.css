@@ -231,9 +231,35 @@ html[data-size="xl"] .patient-profile-page .profile-fields { grid-template-colum
 .data-list > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--ui-line-soft); }
 .data-list dt { color: var(--muted); font-size: 0.9375rem; }
 .data-list dd { overflow-wrap: anywhere; font-weight: 500; }
-.form-stack { max-width: 680px; }
+.form-stack {
+  max-width: 680px;
+  background: var(--ui-surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(20px, 3.5vw, 32px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
 .form-stack label, .filter-bar label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.9375rem; }
-.form-stack > label { margin-top: 20px; }
+.form-stack > label { margin-top: 18px; }
+.form-stack > label:first-child { margin-top: 0; }
+.form-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+.form-fields-grid .field-full-width {
+  grid-column: 1 / -1;
+}
+.form-fields-column {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+@media (max-width: 600px) {
+  .form-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .system-app :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { width: 100%; min-height: 48px; padding: 10px 14px; font: inherit; font-size: 1rem; border: 1.5px solid var(--line); border-radius: 8px; background: var(--ui-surface); }
 .system-app :is(input, select, textarea):hover { border-color: #9cc4ab; }
 .system-app textarea { min-height: 110px; }
@@ -4134,3 +4160,228 @@ html[data-theme="dark"] .doctor-app .reps-correct-tag {
     border-radius: 0;
   }
 }
+
+/* =========================================================
+   Doctor Connected Patient Tabs (.view-tabs)
+   ========================================================= */
+.view-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 24px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.view-tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.view-tabs a:hover {
+  color: var(--ink);
+  background: var(--ui-soft);
+}
+.view-tabs a[aria-current="page"] {
+  color: var(--ui-primary-dark);
+  background: var(--ui-primary-soft);
+  box-shadow: inset 0 0 0 1px rgba(27, 77, 62, 0.2);
+  font-weight: 700;
+}
+html[data-theme="dark"] .view-tabs a[aria-current="page"] {
+  color: #6EE7B7;
+  background: rgba(27, 77, 62, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.3);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .view-tabs a[aria-current="page"] {
+    color: #6EE7B7;
+    background: rgba(27, 77, 62, 0.3);
+    box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.3);
+  }
+}
+
+/* =========================================================
+   Doctor Patient Plan View Card
+   ========================================================= */
+.doctor-plan-view-card {
+  background: var(--ui-surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(20px, 3.5vw, 32px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+}
+.doctor-plan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--ui-line-soft);
+  margin-bottom: 20px;
+}
+.doctor-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  color: #1B4D3E;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+html[data-theme="dark"] .doctor-plan-badge {
+  background: rgba(27, 77, 62, 0.3);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #6EE7B7;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .doctor-plan-badge {
+    background: rgba(27, 77, 62, 0.3);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: #6EE7B7;
+  }
+}
+.doctor-plan-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+.doctor-plan-date {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.doctor-plan-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.doctor-plan-item-card {
+  padding: 16px;
+  border: 1px solid var(--ui-line-soft);
+  border-radius: 10px;
+  background: var(--ui-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doctor-plan-item-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+.doctor-plan-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.doctor-plan-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--ui-surface);
+  border: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+.doctor-plan-assign-box {
+  padding-top: 24px;
+  border-top: 1px solid var(--ui-line-soft);
+}
+.doctor-plan-assign-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.doctor-plan-assign-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.doctor-plan-select-wrap {
+  flex: 1;
+  min-width: 260px;
+}
+.doctor-plan-select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--ui-surface);
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+@media (max-width: 640px) {
+  .doctor-plan-assign-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .doctor-plan-assign-form .command {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   Mobile & Responsive Polish for All Screens
+   ========================================================= */
+@media (max-width: 640px) {
+  .app-main {
+    padding: 18px 16px 28px;
+  }
+  .patient-app .app-main {
+    padding-bottom: calc(var(--patient-navigation-height, 72px) + 24px);
+  }
+  .doctor-app .doctor-overview-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .doctor-app .doctor-overview-search {
+    max-width: 100%;
+  }
+  .doctor-app .doctor-overview-pagesize {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .doctor-app .patient-kpi-grid {
+    gap: 10px;
+  }
+  .doctor-app .patient-kpi-card {
+    padding: 14px 16px;
+  }
+  .patient-detail-header-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .patient-detail-header-nav .btn-nav-outline {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
