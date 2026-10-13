@@ -1558,6 +1558,40 @@ html[data-theme="dark"] .doctor-app .session-round-card {
   flex-wrap: wrap;
 }
 
+.doctor-app .session-round-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.doctor-app .session-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  color: #1B4D3E;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+html[data-theme="dark"] .doctor-app .session-plan-badge {
+  background: rgba(27, 77, 62, 0.25);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #6EE7B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .doctor-app .session-plan-badge {
+    background: rgba(27, 77, 62, 0.25);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: #6EE7B7;
+  }
+}
+
 .doctor-app .session-metrics-summary {
   display: inline-flex;
   align-items: center;
