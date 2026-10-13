@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, CalendarDays, ChevronDown, Info, Save, Search, Video } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronDown, ClipboardList, Info, Save, Search, Video } from "lucide-react";
 import { accountRequest } from "@/lib/account-client";
 import { dateInThailand } from "@/lib/birth-date";
 import { dateLabel, type PatientProfile } from "@/lib/demo-data";
@@ -24,6 +24,15 @@ function SnapshotNotice({ today }: { today: DailyTraining }) {
   const future = today.activePlan?.startsAt && dateInThailand(new Date(today.activePlan.startsAt)) > today.date;
   return today.snapshotFromPreviousPlan || future ? <p className="notice">เลือกแผนใหม่แล้ว เป้าหมายของวันนี้คงเดิม แผนใหม่เริ่มใช้วันถัดไป</p> : null;
 }
+function ActivePlanBadge({ plan }: { plan: PatientTrainingPlan | null }) {
+  if (!plan) return null;
+  return (
+    <Link href="/patient/plan" className="patient-plan-badge" title={`แผนการฝึก: ${plan.name} · คลิกเพื่อดูรายละเอียดแผน`}>
+      <ClipboardList size={14} aria-hidden="true" />
+      <span className="patient-plan-name">แผน: {plan.name}</span>
+    </Link>
+  );
+}
 export function TrainingCards({ today }: { today: DailyTraining }) {
   if (!today.items.length) return <EmptyState title="ยังไม่มีรายการฝึกวันนี้"><Link className="command primary" href="/patient/plan">ดูแผนฝึก <ArrowRight size={18} /></Link></EmptyState>;
   return <div className="exercise-grid">{today.items.map(item => <article className="exercise-item" key={item.id}>
@@ -34,7 +43,7 @@ export function TrainingCards({ today }: { today: DailyTraining }) {
   </article>)}</div>;
 }
 export function TrainingExercises({ patient, today }: { patient: PatientProfile; today: DailyTraining }) {
-  return <><PageHeading title="แผนการฝึก" subtitle={dateLabel(today.date)}><div className="exercise-heading-actions"><Link className="command" href="/patient/plan">จัดการแผน</Link><DisplayMenu navigation /></div></PageHeading><PatientBanner accountProfile={patient} /><SnapshotNotice today={today} /><div className="section-heading"><h2>เป้าหมายวันนี้</h2></div><TrainingCards today={today} /></>;
+  return <><PageHeading title="แผนการฝึก" subtitle={dateLabel(today.date)}><div className="exercise-heading-actions"><Link className="command" href="/patient/plan">จัดการแผน</Link><DisplayMenu navigation /></div></PageHeading><PatientBanner accountProfile={patient} /><SnapshotNotice today={today} /><div className="section-heading patient-target-heading"><h2>เป้าหมายวันนี้</h2><ActivePlanBadge plan={today.activePlan} /></div><TrainingCards today={today} /></>;
 }
 export function TrainingHome({ patient, today, history }: { patient: PatientProfile; today: DailyTraining; history: TrainingHistory }) {
   const next = today.items.find(item => item.canStart && item.status !== "completed");
@@ -54,7 +63,7 @@ export function TrainingHome({ patient, today, history }: { patient: PatientProf
       const date = new Date(`${day.date}T00:00:00Z`);
       return <span key={day.date} className={`${day.count ? "has-results" : ""} ${day.date === today.date ? "today" : ""}`} aria-label={`${dateLabel(day.date)} ${day.count} เซต`}><span>{["อา.", ...weekdays.slice(0, 6)][date.getUTCDay()]}</span><b>{date.getUTCDate()}</b><small>{day.count ? `${day.count} เซต` : "-"}</small></span>;
     })}</div></section></div></div>
-    <div className="section-heading"><h2>เป้าหมายวันนี้</h2><Link className="command" href="/patient/exercises">ดูทั้งหมด</Link></div><TrainingCards today={today} />
+    <div className="section-heading patient-target-heading"><h2>เป้าหมายวันนี้</h2><ActivePlanBadge plan={today.activePlan} /><Link className="command" href="/patient/exercises">ดูทั้งหมด</Link></div><TrainingCards today={today} />
     <div className="section-heading"><h2>ผลการฝึกล่าสุด</h2></div>
     {!history.recent.length ? <EmptyState title="ยังไม่มีเซตที่บันทึก" /> : <div className="table-scroll"><table className="data-table"><caption className="sr-only">เซตที่บันทึกจริง</caption><thead><tr><th>วันที่ / ท่า</th><th>จำนวนครั้ง</th><th>เวลา</th></tr></thead><tbody>{history.recent.map(set => <tr key={set.id}><td>{dateLabel(set.date)}<br />{set.exercise}</td><td>{set.reps} / {set.targetReps}</td><td>{set.seconds === null ? "ไม่ระบุ" : `${set.seconds} วินาที`}</td></tr>)}</tbody></table></div>}
   </>;
