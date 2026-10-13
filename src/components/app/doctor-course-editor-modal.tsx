@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { X, Save, AlertCircle, ChevronDown, ChevronUp, Sparkles, Clock, Check } from "lucide-react";
+import { X, Save, AlertCircle, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { MASTER_EXERCISE_MODULES, type MasterExercise } from "@/lib/exercise-master-catalog";
 import { requestId as newRequestId } from "@/lib/request-id";
 import type { TemplateItem, CatalogItem } from "./doctor-templates-list";

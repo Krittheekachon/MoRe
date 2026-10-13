@@ -1,11 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app/shell";
-import { DoctorPatientList, DoctorPatientConnected, DoctorTemplateEditor, ConnectedPatientTabs } from "@/components/app/doctor-connected";
+import { DoctorPatientList, DoctorPatientConnected } from "@/components/app/doctor-connected";
 import { DoctorTemplateListView } from "@/components/app/doctor-templates-list";
 import { DoctorPatientProfileView } from "@/components/app/doctor-patient-profile";
 import { DoctorPatientAssessmentHistoryView } from "@/components/app/doctor-patient-assessments";
 import { DoctorPatientSessionDetailView } from "@/components/app/doctor-patient-session-detail";
-import { ResultsHistory, ResultDetail } from "@/components/app/results-views";
 import { staffIdentity, staffPatients, staffPatientData, staffTemplates, staffCatalog } from "@/lib/doctor-service";
 import { readResults } from "@/lib/results-service";
 import { AccountError } from "@/lib/account-validation";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Search, Pencil, Calendar, Clock, User, CheckCircle2, Sparkles, Layers } from "lucide-react";
+import { Plus, Search, Pencil, Clock, User, CheckCircle2, Sparkles, Layers } from "lucide-react";
 import { PageHeading } from "./shell";
 import { DoctorCourseEditorModal } from "./doctor-course-editor-modal";
 
