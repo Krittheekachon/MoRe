@@ -44,9 +44,9 @@ async (sessionPage) => {
       }
       for (let i = 0; i < 2; i++) await page.reload({ waitUntil: "networkidle" });
       check(errors.filter(error => /hydrated|hydration|didn't match/i.test(error)).length === warnings.length, "two network reloads introduce no warning");
-      await page.getByRole("button", { name: "ออก", exact: true }).click(); await page.waitForURL("**/patient/exercises");
-      await page.locator(`a[href*="/guide?daily=${daily}"]`).click(); await page.waitForURL(`**/guide?daily=${daily}`);
-      await page.getByRole("link", { name: "เริ่มฝึก", exact: true }).click(); await page.waitForURL(url);
+      await page.getByRole("button", { name: "ออก", exact: true }).click().catch(()=>{throw Error("camera exit button unavailable")}); await page.waitForURL("**/patient/exercises");
+      await page.locator(`a[href*="/guide?daily=${daily}"]`).click().catch(()=>{throw Error("exercise guide link unavailable")}); await page.waitForURL(`**/guide?daily=${daily}`);
+      await page.getByRole("link", { name: "เริ่มฝึก", exact: true }).click().catch(()=>{throw Error("guide start link unavailable")}); await page.waitForURL(url);
       check(errors.filter(error => /hydrated|hydration|didn't match/i.test(error)).length === warnings.length, "internal navigation adds no warning");
     } finally { release?.(); await context.close(); }
   }
@@ -76,25 +76,12 @@ async (sessionPage) => {
       check(await page.evaluate(() => window.__workers.created === 1), "one actual MediaPipe worker");
       check(await page.getByRole("button", { name: "Debug ท่าทดสอบ", exact: true }).count() === 0, "patient has no technical debug");
       const start = page.getByRole("button", { name: "เริ่ม", exact: true });
-      await start.click(); await page.getByRole("button", { name: "หยุด", exact: true }).click();
-      check(await page.getByRole("button", { name: "บันทึกเซต", exact: true }).isEnabled(), "pause preserves recording slot");
-      await start.click(); await page.getByRole("button", { name: "หยุด", exact: true }).click();
-      check((await page.locator(".camera-summary strong").first().innerText()).startsWith("0 /"), "blank real inference cannot count reps on resume");
+      check(await start.isEnabled(), "start arms automatic preparation even before pose is found");
+      check(await page.locator(".pose-chain-check button").count() === 0, "no manual confirmation button");
+      check(await page.getByRole("button", { name: "บันทึกเซต", exact: true }).isDisabled(), "trial does not allocate a recording slot");
       await page.getByRole("button", { name: "รีเซ็ตเซต", exact: true }).click();
-      await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
-      await page.waitForFunction(() => document.querySelector(".pose-primary-actions button:last-child").disabled);
-      check(true, "reset clears slot and disables save");
-      check(await page.evaluate(() => window.__workers.created === 1 && window.__workers.ended === 0 && window.__track.readyState === "live"), "reset preserves live stream and original model worker");
-      await page.waitForFunction(() => document.querySelector('.pose-tracking-card'));
-      check(await page.getByRole("button", {name:"ปิดกล้อง",exact:true}).count() === 1, "reset keeps camera open and valid preview config for blank-frame guidance");
-      await start.click(); await page.getByRole("button", { name: "หยุด", exact: true }).waitFor();
-      const saved = page.waitForResponse(response => response.request().method() === "POST" && /\/training\/sets\//.test(response.url()));
-      await page.getByRole("button", { name: "บันทึกเซต", exact: true }).click();
-      const result = await saved;
-      check(result.ok() && result.request().postDataJSON().side === "left", "same selected side sent to recording");
-      await page.getByRole("heading", { name: "บันทึกเซตแล้ว", exact: true }).waitFor();
-      check((await result.json()).reps === 0, "partial zero-rep set saved without fake landmarks");
-      await page.getByRole("button", { name: "ปิด", exact: true }).click();
+      check(await page.evaluate(() => window.__workers.created === 1 && window.__workers.ended === 0 && window.__track.readyState === "live"), "reset preserves loaded worker and camera stream");
+      check(await page.locator(".pose-chain-check").count() === 1 && await start.isEnabled(), "reset permits Start but does not acquire missing pose");
       await page.getByRole("button", { name: "ปิดกล้อง", exact: true }).click();
       await page.waitForFunction(() => window.__track.readyState === "ended" && window.__workers.ended === 1);
       check(true, "tracks/worker released; render did not reload model");

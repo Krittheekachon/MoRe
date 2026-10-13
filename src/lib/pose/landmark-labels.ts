@@ -12,23 +12,23 @@ export function measurementLabels(criteria: PoseCriteria, points: PosePoint[]) {
 }
 
 // Canvas is mirrored in CSS. Counter-mirror text only so labels stay readable.
-export function drawMeasurementLabels(context: CanvasRenderingContext2D, points: PosePoint[], width: number, height: number, criteria: PoseCriteria, trusted: boolean, preparation?: PreparationResult | null, showFeet = true, safeArea = { top: 0, bottom: height }) {
+export function drawMeasurementLabels(context: CanvasRenderingContext2D, points: PosePoint[], width: number, height: number, criteria: PoseCriteria, trusted: boolean, preparation?: PreparationResult | null, showFeet = true, safeArea = { top: 0, bottom: height }, inspectChain = false) {
   if (!config.showMeasurementLabels) return;
   context.save(); context.font = `600 ${config.labelFontSize}px sans-serif`;
   const occupied: { left: number; top: number; width: number; height: number }[] = [];
   for (const label of measurementLabels(criteria, points)) {
     const showsAngle = !!criteria.preparation && (label.index === criteria.landmarks[0] || label.index === criteria.landmarks[1]);
     const showsShoulder = config.showShoulderLabel && label.index === criteria.preparation?.shoulder;
-    if (!config.showNameOnlyLabels && !showsAngle && !showsShoulder) continue;
+    if (!config.showNameOnlyLabels && !showsAngle && !showsShoulder && !(inspectChain && criteria.landmarks.includes(label.index))) continue;
     if (!showFeet && criteria.preparation && [criteria.preparation.heel, criteria.preparation.foot].includes(label.index)) continue;
     const point = label.point;
     if (!point || ![point.x, point.y].every(Number.isFinite) || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1 || label.confidence < criteria.minVisibility) continue;
     let text = `${label.name}${trusted ? "" : " · รอนิ่ง"}`;
-    if (criteria.preparation && label.index === criteria.landmarks[1]) {
+    if (!inspectChain && criteria.preparation && label.index === criteria.landmarks[1]) {
       const angle = preparation?.knee == null ? null : jointAngle(points, criteria, width, height);
       text = `เข่า ${angle === null ? "—" : Math.round(angle) + "°"}${trusted ? "" : " · รอนิ่ง"}`;
     }
-    if (criteria.preparation && label.index === criteria.landmarks[0]) {
+    if (!inspectChain && criteria.preparation && label.index === criteria.landmarks[0]) {
       const angle = preparation?.torso == null ? null : jointAngle(points, { ...criteria, landmarks: [criteria.preparation.shoulder, criteria.landmarks[0], criteria.landmarks[1]] }, width, height);
       text = `ลำตัว ${angle === null ? "—" : Math.round(angle) + "°"}${trusted ? "" : " · รอนิ่ง"}`;
     }

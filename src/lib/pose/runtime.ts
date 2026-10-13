@@ -1,9 +1,10 @@
 import type { PosePoint } from "./types";
+import { defaultPoseModel, type PoseModel } from "./model-config";
 
 export type PoseFrame = { inferenceMs?: number; points: PosePoint[]; world: PosePoint[]; timestamp: number; at: number; width: number; height: number };
 export type PoseRuntime = { dispose: () => Promise<void> };
 
-export function openPoseRuntime(video: HTMLVideoElement, onFrame: (frame: PoseFrame) => void, onStatus: (status: "loading" | "ready" | "error") => void): PoseRuntime {
+export function openPoseRuntime(video: HTMLVideoElement, onFrame: (frame: PoseFrame) => void, onStatus: (status: "loading" | "ready" | "error") => void, model: PoseModel = defaultPoseModel): PoseRuntime {
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
   let disposed = false; let busy = false; let ready = false; let raf = 0; let lastVideoTime = -1; let lastSent = -Infinity; let lastReceived = -Infinity;
   let resolveDisposal: () => void = () => {};
@@ -45,7 +46,7 @@ export function openPoseRuntime(video: HTMLVideoElement, onFrame: (frame: PoseFr
     else if (event.data.type === "error") fail();
   };
   worker.onerror = fail;
-  worker.postMessage({ type: "init", origin: location.origin });
+  worker.postMessage({ type: "init", origin: location.origin, model });
   raf = requestAnimationFrame(tick);
   return { dispose };
 }

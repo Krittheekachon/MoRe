@@ -1,5 +1,11 @@
 # MoRe Checklist
 
+Automatic preparation (2026-10-13): Start once, then stable trusted start pose automatically acquires chain baseline and starts existing countdown. Manual confirmation removed by user decision; anatomical identity remains unverified. Supersedes manual preflight entries below. See [tracking reliability](pose-tracking-accuracy.md).
+
+Ankle/proportion extension (2026-10-13): optional confirmed ankle–heel–toe geometry guard, loose-cuff guidance and synthetic individual-proportion/camera-scale cases. No fixed human leg ratio, auxiliary visibility gate or angle/DB change. Human multi-person and iPad results remain unmeasured. See [tracking reliability](pose-tracking-accuracy.md).
+
+Selected-leg tracking update (2026-10-13): mock preflight confirmation, frozen segment continuity guard and developer-only Full/Heavy comparison. User clarified to retain current v7 torso 80–115° / knee 155–180°. No engine criteria/DB changes. See [tracking reliability](pose-tracking-accuracy.md); human-clothing clips and physical iPad accuracy remain unmeasured.
+
 - Doctor portal reconciled with patient main per explicit five-conflict decisions; real patient IDs retained, prototype list disconnected from live data, patient CSS/header/audio preserved. TypeScript/targeted lint/build pass; API 28, policy 13 and Chromium 53 checks pass. See [merge notes](doctor-portal-merge.md). Physical iPad pending. This supersedes prototype-list integration claims below.
 
 - Primary-doctor feature removed by latest user instruction: UI/profile DTO/directory APIs/Prisma/DBML removed; migration 20261012010000_remove_primary_doctor applied. Doctor accounts and patient training integration retained. PostgreSQL/API 29 checks and Chromium profile 14 checks (4 viewport sizes, direct/refresh, zero hydration errors) pass; TypeScript/lint pass. This supersedes earlier primary-doctor implementation entries. Physical iPad pending.

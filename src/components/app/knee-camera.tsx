@@ -13,6 +13,8 @@ import { type DailyTrainingItem } from "@/lib/training-types";
 import { poseEngine, type RepetitionCounter } from "@/lib/pose/engines/registry";
 import { drawPoseOverlay } from "@/lib/pose/draw-overlay";
 import { drawMeasurementLabels, measurementLabels, landmarkLabel } from "@/lib/pose/landmark-labels";
+import { PoseChainContinuity } from "@/lib/pose/chain-continuity";
+import { defaultPoseModel, type PoseModel } from "@/lib/pose/model-config";
 import { PoseTrackingQuality, PoseLandmarkSmoother } from "@/lib/pose/tracking-quality";
 import { KneePreparation, type PreparationResult, type PreparationDebug } from "@/lib/pose/exercises/knee-preparation";
 import { refreshMockCameraPolicy, cameraCriteriaSignature } from "@/lib/pose/camera-test-adapter";
@@ -43,6 +45,18 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
   const [currentAngle, setCurrentAngle] = useState<number | null>(null);
   const [definition, setDefinition] = useState<PoseCriteria | null>(null);
   const measurement = useRef<PoseCriteria | null>(null);
+  const criteriaRequest = useRef(0);
+  const inspectRequired = assignment.exercise.code === "demo-knee-extension";
+  const [chainGuard] = useState(() => new PoseChainContinuity());
+  const confirmedChain = useRef(false);
+  const [chainConfirmed, setChainConfirmed] = useState(false);
+  const [model, setModel] = useState<PoseModel>(defaultPoseModel);
+  const selectedModel = useRef<PoseModel>(defaultPoseModel);
+  const modelStats = useRef({ frames: 0, detected: 0 });
+  const [detectionRate, setDetectionRate] = useState<number | null>(null);
+  const [chainReason, setChainReason] = useState("unconfirmed");
+  const lastChainViewAt = useRef(-Infinity);
+  const resetChain = useCallback(() => { chainGuard.reset(); lastChainViewAt.current = -Infinity; confirmedChain.current = false; setChainConfirmed(false); }, [chainGuard]);
   const [trackingGuard] = useState(() => new PoseTrackingQuality());
   const trackingQuality = useRef(trackingGuard);
   const [filters] = useState(() => ({ image: new PoseLandmarkSmoother(), world: new PoseLandmarkSmoother() }));
@@ -84,6 +98,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     else confirmation.current?.close();
   }, [pendingDiscard]);
   const stream = useRef<MediaStream | null>(null); const runtime = useRef<PoseRuntime | null>(null);
+  const runtimeDisposal = useRef<Promise<void>>(Promise.resolve());
   const mounted = useRef(true); const generation = useRef(0); const pending = useRef(false);
   const testToolsStopped = useRef(false);
   const active = useRef(false); const activeSince = useRef<number | null>(null); const elapsed = useRef(0);
@@ -102,7 +117,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     if (mounted.current) { setRunning(false); setPaused(!!slot.current); setSeconds(elapsedSeconds()); }
   }, [elapsedSeconds, filters, sound]);
   const closeCamera = useCallback(() => {
-    generation.current++; pauseLocally(); runtime.current?.dispose(); runtime.current = null;
+    criteriaRequest.current++; resetChain(); generation.current++; pauseLocally(); runtimeDisposal.current = runtime.current?.dispose() ?? runtimeDisposal.current; runtime.current = null;
     stream.current?.getTracks().forEach(track => track.stop()); stream.current = null;
     if (video.current) video.current.srcObject = null;
     if (canvas.current) canvas.current.getContext("2d")?.clearRect(0, 0, canvas.current.width, canvas.current.height);
@@ -110,7 +125,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     displaySmoother.current.reset();
     preparation.current = null; setPreparationView(null); lastViewAt.current = -Infinity;
     if (mounted.current) { setCamera(false); setCurrentAngle(null); setModelStatus("idle"); setTracking("กล้องปิดอยู่"); setTrackingUnreliable(false); }
-  }, [pauseLocally]);
+  }, [pauseLocally, resetChain]);
   useEffect(() => {
     function stop() {
       testToolsStopped.current = true; closeCamera();
@@ -121,12 +136,24 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     window.addEventListener("more-test-tools-pause", stop);
     return () => { window.removeEventListener("more-test-tools-pause", stop); channel?.close(); };
   }, [closeCamera]);
-  function chooseSide(value: Side) {
+  async function chooseSide(value: Side) {
     if (value === side) return;
     sound.reset(0);
-    setSide(value); cycle.current?.interrupt(); overlay.current = null; preparation.current = null;
+    resetChain(); setSide(value); cycle.current?.interrupt(); overlay.current = null; preparation.current = null;
     trackingQuality.current.reset(); filters.image.reset(); filters.world.reset();
     measurement.current = null; setDefinition(null); setCurrentAngle(null); setPreparationView(null); setLandmarkTracking([]);
+    // Resetting a bilateral assignment may retain its camera; load preview
+    // criteria before the manual confirmation, without allocating a set.
+    const requestId = ++criteriaRequest.current, cameraGeneration = generation.current;
+    if (stream.current && approvalAvailable) {
+      setBusy(true);
+      try {
+        const config = await request<{ criteria: PoseCriteria }>(developer ? `/api/developer/criteria?side=${value}` : `/api/patient/training/daily/${assignment.id}/recording?side=${value}`, "GET");
+        if (!mounted.current || criteriaRequest.current !== requestId || generation.current !== cameraGeneration) return;
+        measurement.current = refreshMockCameraPolicy(config.criteria); setDefinition(measurement.current);
+      } catch { if (mounted.current && criteriaRequest.current === requestId) setError("โหลดข้อมูลข้างที่ฝึกไม่ได้ กรุณาปิดกล้องแล้วลองใหม่"); }
+      finally { if (mounted.current && criteriaRequest.current === requestId) setBusy(false); }
+    }
   }
   function frame(result: PoseFrame) {
     if (!mounted.current) return;
@@ -134,16 +161,23 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
     const definition = criteria.current ?? measurement.current;
     const key = definition ? `${definition.exerciseCode}:${definition.landmarks.join(",")}:${definition.coordinates}:${definition.criteriaVersion}` : "";
     if (filterKey.current !== key) {
-      filterKey.current = key; filters.image.reset(); filters.world.reset(); trackingQuality.current.reset(); preparation.current = null;
+      filterKey.current = key; resetChain(); filters.image.reset(); filters.world.reset(); trackingQuality.current.reset(); preparation.current = null;
       cycle.current?.interrupt(); overlay.current = null;
     }
-    const trusted = !definition || trackingQuality.current.update(result.points, definition, result.at);
+    const initialTrusted = !definition || trackingQuality.current.update(result.points, definition, result.at);
+    const chainTrusted = !inspectRequired || !definition || chainGuard.update(initialTrusted ? result.points : [], definition, result.width, result.height, result.at);
+    if (inspectRequired && chainGuard.reason === "camera-or-side-changed") resetChain();
+    const trusted = initialTrusted && chainTrusted;
+    if (inspectRequired && !chainTrusted) { cycle.current?.interrupt(); overlay.current?.preview.interrupt(); sound.updatePreparation(false, result.at, definition?.maxGapMs ?? 1000, { message: "จุดวัดไม่ชัด", missing: !result.points.length, ankleUnclear: chainGuard.reason === "ankle-geometry" || !!definition && selectedAnkleUnclear(result.points, definition) }); }
+    modelStats.current.frames++; if (result.points.length) modelStats.current.detected++;
+
     if (!trusted) { filters.image.reset(); filters.world.reset(); }
     const displayPoints = trusted ? filters.image.update(result.points, result.at, definition?.minVisibility) : [];
     const points = definition?.coordinates === "world-3d" ? (trusted ? filters.world.update(result.world, result.at, definition.minVisibility, false) : []) : displayPoints;
     const refreshView = result.at - lastViewAt.current >= 200;
 
-    if (refreshView) lastViewAt.current = result.at;
+    if (result.at - lastChainViewAt.current >= 200) { lastChainViewAt.current = result.at; setChainReason(chainGuard.reason); setDetectionRate(modelStats.current.frames ? modelStats.current.detected / modelStats.current.frames : null); }
+
     if (refreshView) setLandmarkTracking(definition ? measurementLabels(definition, displayPoints) : []);
     const inFrame = definition?.landmarks.every(i => result.points[i] && result.points[i].x >= 0 && result.points[i].x <= 1 && result.points[i].y >= 0 && result.points[i].y <= 1);
     const angle = definition && inFrame && trusted ? poseEngine(definition).measure(points, definition, result.width, result.height) : null;
@@ -165,12 +199,18 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
         view = preparation.current.gate.update(displayPoints, definition, result.width, result.height, result.at, trusted, counter.movement);
         feedbackAllowed = view.allowed;
         if (counting) {
+          // Start arms the existing flow. Acquire a baseline only from a current,
+          // reliable and stable preparation pose; preview frames never latch it.
+          if (inspectRequired && !confirmedChain.current && view.allowed && trusted && angle !== null && chainGuard.confirm(result.at)) {
+            confirmedChain.current = true; setChainConfirmed(true);
+            counter.interrupt(); sound.reset(counter.repetitions.length);
+          }
           if (audioSupported) {
-            const preparingAllowed = view.allowed && trusted && angle !== null;
+            const preparingAllowed = view.allowed && trusted && angle !== null && (!inspectRequired || confirmedChain.current);
             const ready = sound.updatePreparation(preparingAllowed, result.at, definition.maxGapMs, {
               message: !trusted && result.points.length ? "จุดวัดไม่ชัด" : view.message,
               missing: !result.points.length,
-              ankleUnclear: selectedAnkleUnclear(result.points, definition),
+              ankleUnclear: chainGuard.reason === "ankle-geometry" || selectedAnkleUnclear(result.points, definition),
             });
             if (!ready) view = { ...view, allowed: false, ready: false,
               countdownRemaining: preparingAllowed ? sound.remaining ?? undefined : undefined,
@@ -185,6 +225,8 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
         allowed = view.allowed;
         if (!allowed) { if (view.interrupt) counter.interrupt(); else counter.suspend?.(result.at); }
       }
+      if (inspectRequired && !confirmedChain.current) { allowed = false; counter.interrupt(); }
+      if (inspectRequired && !chainTrusted) { allowed = false; feedbackAllowed = false; counter.interrupt(); }
       if (allowed) counter.sample(angle, result.at, confidence); // Preview only when not actively counting.
       feedbackStatus = overlay.current.feedback.update(feedbackAllowed ? angle : null, result.at, confidence, counter.movement);
       const lastCompleted = counter.repetitions.at(-1);
@@ -239,7 +281,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
           const imageTop = rect ? rect.top + (rect.height - output.height * scale) / 2 : 0;
           const safeArea = { top: Math.max(0, header ? (header.bottom - imageTop) / scale : 0), bottom: Math.min(output.height, card ? (card.top - imageTop) / scale : output.height) };
           const shown = framePreparation;
-          if (!developer || developerOverlay.current.angles) drawMeasurementLabels(context, displayPoints, output.width, output.height, definition, trusted, shown, !(cycle.current?.movement.phase === "moving"), safeArea);
+          if (!developer || developerOverlay.current.angles) drawMeasurementLabels(context, displayPoints, output.width, output.height, definition, trusted, shown, !(cycle.current?.movement.phase === "moving"), safeArea, inspectRequired && !confirmedChain.current);
           if (refreshView || shown?.knee === null || shown?.torso === null) {
             setPreparationView(previous => previous?.message === shown?.message && previous?.ready === shown?.ready && previous?.countdownRemaining === shown?.countdownRemaining && previous?.knee === shown?.knee && previous?.torso === shown?.torso ? previous : shown);
             lastViewAt.current = result.at;
@@ -268,7 +310,7 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
   async function openCamera() {
     if (audioSupported) void sound.player.unlock();
     if (opening || stream.current) return;
-    const attempt = ++generation.current; setOpening(true); setError("");
+    const attempt = ++generation.current; modelStats.current = { frames: 0, detected: 0 }; developerFrameAt.current = null; setDetectionRate(null); setDeveloperView(null); setOpening(true); setError("");
     try {
       if (!window.isSecureContext) throw new Error("CAMERA_HTTPS");
       if (!navigator.mediaDevices?.getUserMedia || !window.Worker || !window.OffscreenCanvas || !window.createImageBitmap) throw new Error("อุปกรณ์หรือ browser นี้ยังไม่รองรับกล้องและการตรวจท่า กรุณาอัปเดต browser");
@@ -291,13 +333,32 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
         measurement.current = refreshMockCameraPolicy(config.criteria);
         setDefinition(measurement.current);
       }
-      runtime.current = openPoseRuntime(video.current!, frame, status => { if (!mounted.current) return; setModelStatus(status); if (status === "error") { pauseLocally(); setError("โหลดหรือประมวลผลการตรวจท่าไม่ได้ กรุณาปิดกล้องแล้วลองใหม่"); } });
+      await runtimeDisposal.current;
+      if (!mounted.current || generation.current !== attempt) return;
+      runtime.current = openPoseRuntime(video.current!, result => { if (generation.current === attempt) frame(result); }, status => { if (!mounted.current || generation.current !== attempt) return; setModelStatus(status); if (status === "error") { pauseLocally(); setError("โหลดหรือประมวลผลการตรวจท่าไม่ได้ กรุณาปิดกล้องแล้วลองใหม่"); } }, selectedModel.current);
       acquired.getVideoTracks()[0].onended = closeCamera;
       sound.setPaused(false);
       if (audioSupported) void sound.player.play("intro", 3);
     } catch (cause) {
       if (generation.current === attempt) { closeCamera(); if (mounted.current) setError(cause instanceof Error && cause.message === "CAMERA_HTTPS" ? "กล้องต้องใช้ HTTPS หรือ localhost บนมือถือ/iPad ให้เปิด URL HTTPS ที่เชื่อถือใบรับรองแล้ว" : cause instanceof DOMException && cause.name === "NotAllowedError" ? "ไม่ได้รับสิทธิ์กล้อง กรุณาอนุญาตกล้องใน browser" : cause instanceof DOMException && cause.name === "NotFoundError" ? "ไม่พบกล้อง กรุณาตรวจอุปกรณ์กล้อง" : cause instanceof DOMException && cause.name === "NotReadableError" ? "กล้องถูกใช้งานหรือเปิดไม่ได้ กรุณาปิดแอปอื่นที่ใช้กล้อง" : cause instanceof Error ? cause.message : "เปิดกล้องไม่ได้ กรุณาตรวจอุปกรณ์และลองใหม่"); }
     } finally { if (mounted.current) setOpening(false); }
+  }
+  async function changeModel(value: PoseModel) {
+    if (!developer || active.current || pending.current || opening || value === selectedModel.current) return;
+    pending.current = true; setBusy(true); sound.setPaused(true); sound.reset();
+    const attempt = ++generation.current;
+    const old = runtime.current; runtime.current = null;
+    try {
+      await (old?.dispose() ?? runtimeDisposal.current);
+      if (!mounted.current || generation.current !== attempt) return;
+      selectedModel.current = value; setModel(value); resetChain();
+      trackingQuality.current.reset(); filters.image.reset(); filters.world.reset(); preparation.current = null;
+      cycle.current?.interrupt(); overlay.current = null; modelStats.current = { frames: 0, detected: 0 }; developerFrameAt.current = null; setDeveloperView(null); setDetectionRate(null); setCurrentAngle(null); setPreparationView(null);
+      if (stream.current && video.current) runtime.current = openPoseRuntime(video.current, result => { if (generation.current === attempt) frame(result); }, status => {
+        if (!mounted.current || generation.current !== attempt) return;
+        setModelStatus(status); if (status === "error") { pauseLocally(); setError("โหลดโมเดลไม่ได้ ตรวจไฟล์โมเดลแล้วลองเปิดกล้องใหม่"); }
+      }, value);
+    } finally { pending.current = false; if (mounted.current) setBusy(false); }
   }
   async function toggle() {
     if (audioSupported) void sound.player.unlock();
@@ -398,25 +459,27 @@ export function PoseCamera({ assignment, approvalAvailable, demo = false, camera
       measurement.current = exit ? null : previewCriteria; setDefinition(measurement.current); setCurrentAngle(null);
       overlay.current = null; setDebugView(null); setDeveloperView(null); developerFrameAt.current = null;
       preparation.current = null; setPreparationView(null); lastViewAt.current = -Infinity;
+      resetChain();
       if (!exit) sound.resetForNewSet(!!stream.current);
       if (!exit && assignment.side === "both") { setSide(""); measurement.current = null; setDefinition(null); }
       if (exit) { closeCamera(); router.push(developer ? "/developer" : "/patient/exercises"); }
     } catch { setError("ยกเลิกเซตไม่สำเร็จ ผลที่ยังไม่บันทึกยังอยู่ กรุณาลองใหม่"); }
     finally { pending.current = false; if (mounted.current) setBusy(false); }
   }
-  return <div className="pose-session">
+  return <div className="pose-session" data-inspecting={inspectRequired && camera && !chainConfirmed}>
       <div className="pose-camera-stage"><div className="pose-camera-frame">
       <div className="camera-view pose-preview"><video ref={video} playsInline muted aria-label="ภาพกล้องสด" /><canvas ref={canvas} aria-hidden="true" /></div>
       <header className="pose-session-header"><div className="pose-session-title"><h1>{assignment.exercise.name}</h1><p>เซต {planSetNumber ?? "?"} / {assignment.targetSets}</p></div><div className="pose-session-tools"><button className="command" disabled={opening || busy || saveUncertain} onClick={camera ? closeCamera : openCamera}><Camera size={18} />{opening ? "กำลังเปิดกล้อง" : camera ? "ปิดกล้อง" : "เปิดกล้อง"}</button><button className="command" aria-label="รายละเอียดท่า" title="รายละเอียดท่า" disabled={busy || saveUncertain} onClick={async () => { if (running) await toggle(); details.current?.showModal(); }}><Info size={18} /><span>รายละเอียดท่า</span></button></div></header>
       {!camera && <div className="camera-placeholder"><Camera size={48} /><p>กล้องยังไม่เปิด</p></div>}
       </div></div>
-      {camera && !summary && modelStatus === "ready" && ((preparationView && (!preparationView.ready || preparationView.countdownRemaining !== undefined)) || trackingUnreliable || tracking === "ไม่พบร่างกาย / tracking ขาดหาย") && <aside className="pose-tracking-card" data-ready={preparationView?.ready || false} role="alert" aria-live="polite" aria-label="คำแนะนำจัดตำแหน่งกล้อง"><Info size={24} aria-hidden="true" /><div><strong>{(preparationView?.message && (!developer && preparationView.message.includes("°") ? "นั่งบนเก้าอี้ให้มั่นคง หลังตรง และไม่โยกลำตัว" : preparationView.message)) || (tracking === "จุดวัดไม่ชัดเจน กรุณาจัดกล้องใหม่" ? "จุดวัดไม่ชัดเจน" : "ไม่พบร่างกาย")}</strong>{developer && preparationView ? <p>เข่า {preparationView.knee === null ? "—" : `${Math.round(preparationView.knee)}°`} · ลำตัว {preparationView.torso === null ? "—" : `${Math.round(preparationView.torso)}°`}</p> : <p>ปรับตำแหน่งตัวหรือกล้องให้เห็นข้อต่อที่ใช้วัดครบ และไม่ถูกบัง</p>}{developer && !preparationView && landmarkTracking.length > 0 && <p className="pose-tracking-points">{landmarkTracking.map(label => `${label.name}: ${Math.round(label.confidence * 100)}% vis`).join(" · ")}</p>}</div></aside>}
-      <section className="pose-control-card" aria-label="เมนูฝึก"><div className="pose-card-tools"><button className="command pose-exit" disabled={busy || saveUncertain} onClick={() => discard(true)}><LogOut size={18} />ออก</button><span>{running ? "กำลังฝึก" : paused ? "พักการฝึก" : "พร้อมเริ่ม"}</span><button className="icon-command" aria-label="รีเซ็ตเซต" title="รีเซ็ตเซต" disabled={busy || saveUncertain} onClick={() => discard(false)}><RotateCcw size={22} /></button></div>
+      {inspectRequired && camera && !summary && !chainConfirmed && <aside className="pose-chain-check" aria-label="ตรวจท่าเตรียมอัตโนมัติ"><strong>{running ? "กำลังตรวจท่าเตรียม" : "กดเริ่ม แล้วนั่งเข้าท่าเตรียม"}</strong><p>{running ? preparationView?.message || "ให้กล้องเห็นสะโพก เข่า และข้อเท้าข้างที่ฝึกชัดเจน" : "ระบบจะตรวจท่าและนับถอยหลังเมื่อพร้อม โดยไม่ต้องกดยืนยันอีก"}</p><details><summary>วิธีจัดตำแหน่ง</summary><p>หันด้านข้างให้กล้อง ให้เห็นสะโพก เข่า และข้อเท้าข้างที่ฝึก แยกขาไม่ให้ซ้อนกัน ใช้แสงเพียงพอ เอาเสื้อที่ผูกเอวออก และจัดชายกางเกงไม่ให้บังข้อเท้า</p></details></aside>}
+      {camera && !summary && (!inspectRequired || chainConfirmed) && modelStatus === "ready" && ((preparationView && (!preparationView.ready || preparationView.countdownRemaining !== undefined)) || trackingUnreliable || tracking === "ไม่พบร่างกาย / tracking ขาดหาย") && <aside className="pose-tracking-card" data-ready={preparationView?.ready || false} role="alert" aria-live="polite" aria-label="คำแนะนำจัดตำแหน่งกล้อง"><Info size={24} aria-hidden="true" /><div><strong>{inspectRequired && chainConfirmed && trackingUnreliable ? (chainReason === "ankle-geometry" ? "ให้กล้องเห็นข้อเท้าข้างที่ฝึกชัดเจน" : "ตรวจจับข้างที่ฝึกไม่ชัด กรุณาจัดตำแหน่งใหม่") : (preparationView?.message && (!developer && preparationView.message.includes("°") ? "นั่งบนเก้าอี้ให้มั่นคง หลังตรง และไม่โยกลำตัว" : preparationView.message)) || (tracking === "จุดวัดไม่ชัดเจน กรุณาจัดกล้องใหม่" ? "จุดวัดไม่ชัดเจน" : "ไม่พบร่างกาย")}</strong>{developer && preparationView ? <p>เข่า {preparationView.knee === null ? "—" : `${Math.round(preparationView.knee)}°`} · ลำตัว {preparationView.torso === null ? "—" : `${Math.round(preparationView.torso)}°`}</p> : <p>ปรับตำแหน่งตัวหรือกล้องให้เห็นข้อต่อที่ใช้วัดครบ และไม่ถูกบัง</p>}{developer && !preparationView && landmarkTracking.length > 0 && <p className="pose-tracking-points">{landmarkTracking.map(label => `${label.name}: ${Math.round(label.confidence * 100)}% vis`).join(" · ")}</p>}</div></aside>}
+      <section className="pose-control-card" aria-label="เมนูฝึก"><div className="pose-card-tools"><button className="command pose-exit" disabled={busy || saveUncertain} onClick={() => discard(true)}><LogOut size={18} />ออก</button><span>{running ? (inspectRequired && !chainConfirmed ? "กำลังตรวจท่าเตรียม" : "กำลังฝึก") : paused ? "พักการฝึก" : "พร้อมเริ่ม"}</span><button className="icon-command" aria-label="รีเซ็ตเซต" title="รีเซ็ตเซต" disabled={busy || saveUncertain} onClick={() => discard(false)}><RotateCcw size={22} /></button></div>
       <div className="pose-session-metrics">
       {side ? <div className="pose-side-control"><span>ข้างที่ฝึก</span><strong className="pose-side-value">{side === "left" ? "ซ้าย" : "ขวา"}</strong></div> : <div className="pose-side-control" role="group" aria-label="เลือกข้างก่อนเริ่มฝึก"><span>เลือกข้างก่อนเริ่มฝึก</span><div className="pose-side-buttons">{(["left", "right"] as const).map(value => <button key={value} type="button" disabled={running || paused || busy || saveUncertain} onClick={() => chooseSide(value)}>{value === "left" ? "ซ้าย" : "ขวา"}</button>)}</div></div>}
       <section className="camera-summary"><div><strong>{reps} / {assignment.targetReps}</strong><p>ครั้งในเซตนี้</p></div><div><strong>{correctReps}</strong><p>ครั้งที่ทำถูก{developer ? " (ทดสอบ)" : ""}</p></div></section>
       </div><div className="pose-secondary-scroll"><div className="pose-session-status">{!developer && <p>เวลาฝึก {seconds} วินาที</p>}{developer && <p>มุมปัจจุบัน: {currentAngle === null ? "—" : `${currentAngle.toFixed(1)}°`}{definition && <> · เป้าหมาย {definition.correctPeak.min}–{definition.correctPeak.max}°</>} · {seconds} วินาที</p>}<p role="status">{opening ? "กำลังเปิดกล้อง" : modelStatus === "loading" ? "กำลังเตรียมระบบตรวจท่า" : modelStatus === "error" ? "การตรวจท่าไม่พร้อมใช้งาน" : `${modelStatus === "ready" ? "กล้องพร้อม · " : ""}${tracking}`}</p>{!approvalAvailable && <p className="notice">เกณฑ์ท่านี้ยังไม่ยืนยัน เปิดกล้องได้ แต่ยังไม่นับหรือบันทึกผล</p>}{error && <p className="error-text" role="alert">{error}</p>}</div>
-      {developer && <section className="developer-controls"><LogoutButton /><DisplaySettings /><p>Developer · ผลอยู่ในหน่วยความจำ ไม่บันทึกลงฐานข้อมูล</p><p>กล้อง: {opening ? "loading" : camera ? "ready" : error ? "error" : "ยังไม่เปิด"} · model: {modelStatus} · ข้าง: {side || "ไม่มีข้อมูล"}</p><div className="action-row"><button type="button" className="command" disabled={running || paused || camera} onClick={() => chooseSide(side === "left" ? "right" : "left")}>เปลี่ยนข้าง</button><button type="button" className="command" onClick={() => discard(false, true)}>รีเซ็ตผลทดสอบ</button>{(["skeleton", "ids", "angles"] as const).map(key => <label key={key}><input type="checkbox" defaultChecked={key !== "ids"} onChange={event => { developerOverlay.current[key] = event.target.checked; }} />{key === "skeleton" ? "Skeleton" : key === "ids" ? "landmark ID" : "เส้น/มุม"}</label>)}</div>{debugEnabled && <><p>FPS {developerView?.fps?.toFixed(1) ?? "ไม่มีข้อมูล"} · inference {developerView?.inferenceMs?.toFixed(2) ?? "ไม่มีข้อมูล"} ms · peak รอบปัจจุบัน {developerView?.peak?.toFixed(2) ?? "ไม่มีข้อมูล"} · feedback engine: {developerView?.feedback ?? "ไม่มีข้อมูล"}</p><p>พิกัด raw image normalized: x/y 0–1, z ความลึกสัมพัทธ์; มุม image-2d ใช้ x×videoWidth, y×videoHeight, ไม่ใช้ z · เข่า hip–knee–ankle · ลำตัว shoulder–hip–knee</p><div className="table-scroll"><table><thead><tr><th>ID</th><th>x</th><th>y</th><th>z</th><th>visibility</th></tr></thead><tbody>{developerView?.points.map(({id,point}) => <tr key={id}><td>{id}</td>{[point?.x,point?.y,point?.z,point?.visibility].map((value,index)=><td key={index}>{value?.toFixed(4) ?? "ไม่มีข้อมูล"}</td>)}</tr>)}</tbody></table></div></>}</section>}
+      {developer && <section className="developer-controls"><label>โมเดลทดสอบ <select value={model} disabled={running || busy || opening} onChange={event => void changeModel(event.target.value as PoseModel)}><option value="full">Full (ค่าเริ่มต้น)</option><option value="heavy">Heavy</option></select></label><LogoutButton /><DisplaySettings /><p>Developer · ผลอยู่ในหน่วยความจำ ไม่บันทึกลงฐานข้อมูล</p><p>กล้อง: {opening ? "loading" : camera ? "ready" : error ? "error" : "ยังไม่เปิด"} · model: {modelStatus} · ข้าง: {side || "ไม่มีข้อมูล"}</p><div className="action-row"><button type="button" className="command" disabled={running || paused || camera} onClick={() => chooseSide(side === "left" ? "right" : "left")}>เปลี่ยนข้าง</button><button type="button" className="command" onClick={() => discard(false, true)}>รีเซ็ตผลทดสอบ</button>{(["skeleton", "ids", "angles"] as const).map(key => <label key={key}><input type="checkbox" defaultChecked={key !== "ids"} onChange={event => { developerOverlay.current[key] = event.target.checked; }} />{key === "skeleton" ? "Skeleton" : key === "ids" ? "landmark ID" : "เส้น/มุม"}</label>)}</div>{debugEnabled && <><p>โมเดล {model} · อัตราพบ pose {detectionRate === null ? "ไม่มีข้อมูล" : `${(detectionRate * 100).toFixed(1)}%`} · guard {chainReason} · FPS {developerView?.fps?.toFixed(1) ?? "ไม่มีข้อมูล"} · inference {developerView?.inferenceMs?.toFixed(2) ?? "ไม่มีข้อมูล"} ms · peak รอบปัจจุบัน {developerView?.peak?.toFixed(2) ?? "ไม่มีข้อมูล"} · feedback engine: {developerView?.feedback ?? "ไม่มีข้อมูล"}</p><p>พิกัด raw image normalized: x/y 0–1, z ความลึกสัมพัทธ์; มุม image-2d ใช้ x×videoWidth, y×videoHeight, ไม่ใช้ z · เข่า hip–knee–ankle · ลำตัว shoulder–hip–knee</p><div className="table-scroll"><table><thead><tr><th>ID</th><th>x</th><th>y</th><th>z</th><th>visibility</th></tr></thead><tbody>{developerView?.points.map(({id,point}) => <tr key={id}><td>{id}</td>{[point?.x,point?.y,point?.z,point?.visibility].map((value,index)=><td key={index}>{value?.toFixed(4) ?? "ไม่มีข้อมูล"}</td>)}</tr>)}</tbody></table></div></>}</section>}
       {developer && <><button type="button" className="command" aria-expanded={debugEnabled} aria-controls="pose-test-debug" onClick={() => setDebugEnabled(value => !value)}>Debug ท่าทดสอบ</button>{debugEnabled && <section id="pose-test-debug" aria-label="Debug ท่าทดสอบ">
         {!camera || !definition ? <p>เปิดกล้องและเลือกข้างเพื่อดูข้อมูลสด</p> : <>
           <p>exercise: {definition.exerciseCode} · definition {definition.definitionVersion} / criteria {definition.criteriaVersion} · ข้าง {side}</p>
