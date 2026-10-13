@@ -4385,3 +4385,305 @@ html[data-theme="dark"] .doctor-plan-badge {
   }
 }
 
+/* ==========================================================================
+   Doctor Session Angle Chart (องศาการงอ-เหยียดข้อต่อ)
+   ========================================================================== */
+.doctor-session-angle-chart {
+  background: var(--ui-surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.doctor-session-angle-chart .chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.doctor-session-angle-chart .chart-header-info h4 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-session-angle-chart .chart-title-icon {
+  color: var(--brand);
+}
+
+.doctor-session-angle-chart .chart-header-info p {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 4px 0 0 0;
+}
+
+.doctor-session-angle-chart .chart-controls-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.doctor-session-angle-chart .chart-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-session-angle-chart .chart-filter-label {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.doctor-session-angle-chart .segmented-control {
+  display: inline-flex;
+  background: var(--ui-soft, #f3f4f6);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.doctor-session-angle-chart .seg-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.doctor-session-angle-chart .seg-btn:hover {
+  color: var(--ink);
+}
+
+.doctor-session-angle-chart .seg-btn.active {
+  background: var(--ui-surface);
+  color: var(--brand);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="dark"] .doctor-session-angle-chart .segmented-control {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="dark"] .doctor-session-angle-chart .seg-btn.active {
+  background: var(--ui-surface);
+  color: #34d399;
+}
+
+/* Summary stats bar */
+.doctor-session-angle-chart .chart-summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 12px 18px;
+  background: rgba(19, 124, 75, 0.04);
+  border: 1px solid rgba(19, 124, 75, 0.15);
+  border-radius: 12px;
+}
+
+html[data-theme="dark"] .doctor-session-angle-chart .chart-summary-bar {
+  background: rgba(52, 211, 153, 0.06);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.doctor-session-angle-chart .chart-stats-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+
+.doctor-session-angle-chart .stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doctor-session-angle-chart .stat-item .stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.doctor-session-angle-chart .stat-item .stat-val {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.doctor-session-angle-chart .stat-item .stat-val.max {
+  color: #0284c7;
+}
+
+html[data-theme="dark"] .doctor-session-angle-chart .stat-item .stat-val.max {
+  color: #38bdf8;
+}
+
+.doctor-session-angle-chart .live-hover-stat {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.doctor-session-angle-chart .live-hover-stat .hover-val {
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+
+.doctor-session-angle-chart .chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.doctor-session-angle-chart .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-session-angle-chart .legend-line.avg {
+  width: 22px;
+  height: 3px;
+  background: var(--brand);
+  border-radius: 2px;
+}
+
+.doctor-session-angle-chart .legend-line.max {
+  width: 22px;
+  height: 0;
+  border-top: 3px dashed #0284c7;
+}
+
+html[data-theme="dark"] .doctor-session-angle-chart .legend-line.max {
+  border-color: #38bdf8;
+}
+
+/* SVG Chart */
+.doctor-session-angle-chart .chart-svg-container {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.doctor-session-angle-chart .chart-svg {
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+  display: block;
+}
+
+.doctor-session-angle-chart .grid-line {
+  stroke: var(--line);
+  stroke-dasharray: 4 4;
+}
+
+.doctor-session-angle-chart .axis-line {
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.doctor-session-angle-chart .axis-text {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.doctor-session-angle-chart .line-avg {
+  stroke: var(--brand);
+  stroke-width: 2.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doctor-session-angle-chart .line-max {
+  stroke: #0284c7;
+  stroke-width: 2.5;
+  stroke-dasharray: 6 4;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+html[data-theme="dark"] .doctor-session-angle-chart .line-max {
+  stroke: #38bdf8;
+}
+
+.doctor-session-angle-chart .point-avg {
+  fill: var(--brand);
+  stroke: var(--ui-surface);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r 0.15s ease;
+}
+
+.doctor-session-angle-chart .point-avg:hover {
+  r: 6.5;
+}
+
+.doctor-session-angle-chart .point-max {
+  stroke: var(--ui-surface);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r 0.15s ease;
+}
+
+.doctor-session-angle-chart .point-max:hover {
+  r: 6;
+}
+
+@media (max-width: 640px) {
+  .doctor-session-angle-chart {
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .doctor-session-angle-chart .chart-controls-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .doctor-session-angle-chart .chart-filter-group {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .doctor-session-angle-chart .segmented-control {
+    flex: 1;
+    justify-content: center;
+  }
+  .doctor-session-angle-chart .seg-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+  .doctor-session-angle-chart .chart-stats-left {
+    gap: 12px;
+  }
+}
+
+
