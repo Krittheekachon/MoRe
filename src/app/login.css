@@ -79,8 +79,37 @@
 .dialog-close { display: grid; place-items: center; width: 44px; height: 44px; position: absolute; top: 4px; right: 4px; cursor: pointer; border-radius: 50%; }
 .dialog-close:hover { background: var(--ui-primary-soft); }
 .notice-icon { display: block; margin: 0 auto 16px; color: var(--auth-primary-text); }
-.auth-dialog h2 { font-size: 1.25rem; font-weight: 700; line-height: 1.6; text-align: center; }
 .auth-dialog p { margin: 12px 0 24px; color: var(--auth-muted); font-size: 1rem; line-height: 1.75; }
+
+.auth-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--auth-primary-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-decoration: none;
+}
+.auth-back-link:hover {
+  text-decoration: underline;
+}
+
+.auth-alert-box {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #DC2626;
+  font-size: 0.875rem;
+  text-align: center;
+}
+html[data-theme="dark"] .auth-alert-box {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
 
 .register-page {
   --auth-background: var(--background);
