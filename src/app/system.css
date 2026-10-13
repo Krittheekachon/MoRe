@@ -2978,13 +2978,21 @@ html[data-theme="dark"] .doctor-app .reps-correct-tag {
 
 .number-input-wrap input {
   width: 100%;
-  padding: 8px 48px 8px 12px;
+  padding: 8px 64px 8px 12px;
   border: 1px solid #C4DAD0;
   border-radius: 8px;
   background: #FFFFFF;
   color: var(--ink);
   font-size: 0.9375rem;
   outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.number-input-wrap input::-webkit-outer-spin-button,
+.number-input-wrap input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .number-input-wrap .unit {
@@ -2993,6 +3001,7 @@ html[data-theme="dark"] .doctor-app .reps-correct-tag {
   font-size: 0.8125rem;
   color: var(--muted);
   pointer-events: none;
+  user-select: none;
 }
 
 .config-field select {
