@@ -63,7 +63,7 @@ export async function listTrainingTemplates(patientId?: number) {
   const templates = await prisma.rehabilitationTemplate.findMany({ where: { is_active: true }, orderBy: [{ name_th: "asc" }, { id: "asc" }], include: templateRelations });
   return templates.filter(item => validTemplate(item) && (
     cameraTestEnabled() && item.template_code === mockDemoTemplateCode && item.exercises.length === 1 && item.exercises[0].exercise.code === demoExerciseCode ||
-    (demo ? item.template_code.startsWith("DEMO-") && (!cameraTestEnabled() || item.template_code === mockDemoTemplateCode) && item.exercises.every(exercise => exercise.exercise.code === demoExerciseCode) : !item.template_code.startsWith("DEMO-") && item.exercises.every(exercise => exercise.exercise.code !== demoExerciseCode))
+    (demo ? item.template_code.startsWith("DEMO-") && item.exercises.every(exercise => exercise.exercise.code === demoExerciseCode) : !item.template_code.startsWith("DEMO-") && item.exercises.every(exercise => exercise.exercise.code !== demoExerciseCode))
   )).map(templateDTO);
 }
 

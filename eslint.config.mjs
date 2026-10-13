@@ -7,7 +7,6 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     ".next-demo/**",
     "out/**",
@@ -16,6 +15,8 @@ const eslintConfig = defineConfig([
     "src/generated/prisma/**",
     "public/mediapipe/**",
     "output/playwright/**",
+    ".agents/**",
+    "scratch/**",
   ]),
 ]);
 

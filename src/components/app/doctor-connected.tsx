@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useMemo, useEffect, type FormEvent } from "react";
-import { Plus, Save, Pencil, Search, ArrowRight, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Save, Pencil, Search, ArrowRight, ChevronUp, ChevronDown, ClipboardList } from "lucide-react";
 import { PageHeading, EmptyState } from "./shell";
 import type { staffPatientData, staffTemplates, staffCatalog } from "@/lib/doctor-service";
 import { ResultsHistory } from "./results-views";
 import { requestId as newRequestId } from "@/lib/request-id";
+import { getPrototypeDoctorPatients } from "@/lib/prototype-doctor-patients";
 
 async function submit(url: string, method: string, body: unknown) {
   const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -52,12 +53,12 @@ const PAGE_SIZE_STORAGE_KEY = "more_doctor_page_size";
 
 export function DoctorPatientList({ patients }: { patients: DoctorPatient[] }) {
   const [query, setQuery] = useState("");
-  const [pageSize, setPageSize] = useState(10);
-  const [pageSizeInput, setPageSizeInput] = useState("10");
+  const [pageSize, setPageSize] = useState(9);
+  const [pageSizeInput, setPageSizeInput] = useState("9");
   const [page, setPage] = useState(0);
 
   const displayPatients = useMemo(() => {
-    return patients;
+    return patients.length >= 9 ? patients : getPrototypeDoctorPatients(patients);
   }, [patients]);
 
   useEffect(() => {
@@ -301,7 +302,26 @@ export function DoctorPatientList({ patients }: { patients: DoctorPatient[] }) {
     </div>
   );
 }
-export function ConnectedPatientTabs({ id }: { id: number }) { return <nav className="view-tabs" aria-label="ข้อมูลผู้ป่วย"><Link href={`/doctor/patients/${id}`}>ข้อมูลส่วนตัว</Link><Link href={`/doctor/patients/${id}/assessments`}>ประวัติผล</Link><Link href={`/doctor/patients/${id}/plan`}>แผนการฝึก</Link></nav>; }
+export function ConnectedPatientTabs({ id }: { id: number }) {
+  const pathname = usePathname();
+  const isProfile = pathname === `/doctor/patients/${id}`;
+  const isAssessments = pathname.startsWith(`/doctor/patients/${id}/assessments`);
+  const isPlan = pathname.startsWith(`/doctor/patients/${id}/plan`);
+
+  return (
+    <nav className="view-tabs" aria-label="ข้อมูลผู้ป่วย">
+      <Link href={`/doctor/patients/${id}`} aria-current={isProfile ? "page" : undefined}>
+        ข้อมูลส่วนตัว
+      </Link>
+      <Link href={`/doctor/patients/${id}/assessments`} aria-current={isAssessments ? "page" : undefined}>
+        ประวัติผลการฝึก
+      </Link>
+      <Link href={`/doctor/patients/${id}/plan`} aria-current={isPlan ? "page" : undefined}>
+        แผนการฝึก
+      </Link>
+    </nav>
+  );
+}
 export function DoctorPatientConnected({ data, templates, planOnly = false }: { data: PatientData; templates: Templates; planOnly?: boolean }) {
   const router = useRouter(); const profile = data.profile;
   const [notes, setNotes] = useState(profile.medical_notes || ""); const [templateId, setTemplateId] = useState(String(data.plan?.templateId || ""));
@@ -311,11 +331,91 @@ export function DoctorPatientConnected({ data, templates, planOnly = false }: { 
     try { await submit(`/api/doctor/patients/${profile.patient_id}`, plan ? "POST" : "PATCH", plan ? { templateId: Number(templateId) } : { medicalNotes: notes }); setStatus("บันทึกแล้ว"); router.refresh(); }
     catch (error) { setStatus(error instanceof Error ? error.message : "เชื่อมต่อไม่ได้"); } finally { setBusy(false); }
   }
-  return <><PageHeading title={profile.full_name} subtitle={`HN ${profile.hn || "-"}`} back="/doctor" /><ConnectedPatientTabs id={profile.patient_id} />
-    {!planOnly && <><dl className="profile-grid">{[["วันเกิด", profile.date_of_birth], ["เพศ", profile.sex], ["โทรศัพท์", profile.phone], ["ชนิดโรคหลอดเลือดสมอง", profile.stroke_type], ["วันที่วินิจฉัย", profile.stroke_diagnosed_on], ["โรคอื่น", profile.other_conditions]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "-"}</dd></div>)}</dl><form className="form-stack" onSubmit={event => { event.preventDefault(); write(false); }}><label>บันทึกทีมรักษา<textarea value={notes} maxLength={10000} onChange={event => setNotes(event.target.value)} /></label><button className="command" disabled={busy}><Save size={18} />บันทึกข้อมูล</button></form></>}
-    <section className="results-set"><h2>แผนการฝึก</h2>{data.plan ? <><h3>{data.plan.name}</h3>{data.plan.startsAt && <p>เริ่มใช้ {new Date(data.plan.startsAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>}{data.plan.items.map(item => <p key={item.id}>{item.exercise.name} · {item.targetSets} เซต × {item.targetReps} ครั้ง · {item.sessionsPerDay} รอบ/วัน · {item.schedule === "daily" ? "ทุกวัน" : `วัน ${item.weekdays.join(", ")}`}</p>)}</> : <p>ยังไม่มีแผน</p>}
-    <form className="form-stack" onSubmit={event => { event.preventDefault(); write(true); }}><label>เลือกแผนกลาง<select value={templateId} onChange={event => setTemplateId(event.target.value)} required><option value="">เลือกแผน</option>{templates.map(template => <option key={template.id} value={template.id}>{template.name_th} v{template.version_number}</option>)}</select></label><button className="command primary" disabled={busy || !templateId}><Save size={18} />ใช้แผนนี้</button></form><p className="muted">ถ้ามีรายการของวันนี้แล้ว แผนใหม่เริ่มวันถัดไป โดยไม่แก้เป้าหมายหรือผลเดิม</p></section>
-    {status && <p role="status" className="notice">{status}</p>}{!planOnly && <ResultsHistory sessions={data.sessions} base={`/doctor/patients/${profile.patient_id}`} />}</>;
+  return (
+    <>
+      <PageHeading title={profile.full_name} subtitle={`HN ${profile.hn || "-"}`} back="/doctor" />
+      <ConnectedPatientTabs id={profile.patient_id} />
+      {!planOnly && (
+        <>
+          <dl className="profile-grid">
+            {[["วันเกิด", profile.date_of_birth], ["เพศ", profile.sex], ["โทรศัพท์", profile.phone], ["ชนิดโรคหลอดเลือดสมอง", profile.stroke_type], ["วันที่วินิจฉัย", profile.stroke_diagnosed_on], ["โรคอื่น", profile.other_conditions]].map(([label, value]) => (
+              <div key={label}><dt>{label}</dt><dd>{value || "-"}</dd></div>
+            ))}
+          </dl>
+          <form className="form-stack" onSubmit={event => { event.preventDefault(); write(false); }}>
+            <label><span>บันทึกทีมรักษา</span><textarea value={notes} maxLength={10000} onChange={event => setNotes(event.target.value)} /></label>
+            <button className="command" disabled={busy}><Save size={18} />บันทึกข้อมูล</button>
+          </form>
+        </>
+      )}
+      <section className="doctor-plan-view-card">
+        <div className="doctor-plan-header">
+          <div>
+            <span className="doctor-plan-badge">
+              <ClipboardList size={16} /> แผนที่กำลังใช้งาน
+            </span>
+            <h2 className="doctor-plan-title">{data.plan ? data.plan.name : "ยังไม่มีแผนการฝึก"}</h2>
+            {data.plan?.startsAt && (
+              <p className="doctor-plan-date">
+                เริ่มใช้งาน: {new Date(data.plan.startsAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {data.plan ? (
+          <div className="doctor-plan-items-grid">
+            {data.plan.items.map(item => (
+              <div key={item.id} className="doctor-plan-item-card">
+                <h3 className="doctor-plan-item-name">{item.exercise.name}</h3>
+                <div className="doctor-plan-item-tags">
+                  <span className="doctor-plan-tag">{item.targetSets} เซต × {item.targetReps} ครั้ง</span>
+                  <span className="doctor-plan-tag">{item.sessionsPerDay} รอบ/วัน</span>
+                  <span className="doctor-plan-tag">{item.schedule === "daily" ? "ทุกวัน" : `วัน ${item.weekdays.join(", ")}`}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted" style={{ padding: "16px 0" }}>ยังไม่มีแผนการฝึกที่เปิดใช้งาน</p>
+        )}
+
+        <div className="doctor-plan-assign-box">
+          <h3 className="doctor-plan-assign-title">มอบหมายแผนการฝึกกลาง</h3>
+          <p className="muted" style={{ fontSize: "0.875rem", marginBottom: "16px" }}>
+            เลือกแผนการฝึกมาตรฐานจากระบบเพื่อมอบหมายให้กับผู้ป่วยรายนี้
+          </p>
+          <form className="doctor-plan-assign-form" onSubmit={event => { event.preventDefault(); write(true); }}>
+            <div className="doctor-plan-select-wrap">
+              <select
+                value={templateId}
+                onChange={event => setTemplateId(event.target.value)}
+                required
+                className="doctor-plan-select"
+                aria-label="เลือกแผนกลาง"
+              >
+                <option value="">-- เลือกแผนการฝึกกลาง --</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name_th} v{template.version_number}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className="command primary" disabled={busy || !templateId}>
+              <Save size={18} />
+              <span>{busy ? "กำลังบันทึก…" : "ใช้แผนนี้กับผู้ป่วย"}</span>
+            </button>
+          </form>
+          <p className="muted" style={{ fontSize: "0.8125rem", marginTop: "12px" }}>
+            * ถ้ามีรายการของวันนี้แล้ว แผนใหม่จะเริ่มในวันถัดไป โดยไม่แก้ไขเป้าหมายหรือผลเดิม
+          </p>
+        </div>
+      </section>
+      {status && <p role="status" className="notice">{status}</p>}
+      {!planOnly && <ResultsHistory sessions={data.sessions} base={`/doctor/patients/${profile.patient_id}`} />}
+    </>
+  );
 }
 type Item = { exerciseId: number; side: string | null; sets: number; reps: number; frequency: number; schedule: string; weekdays: number[]; instructions: string };
 export function DoctorTemplateEditor({ templates, catalog }: { templates: Templates; catalog: Catalog }) {

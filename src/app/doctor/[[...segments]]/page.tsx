@@ -1,10 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app/shell";
-import { DoctorPatientList, DoctorPatientConnected, DoctorTemplateEditor, ConnectedPatientTabs } from "@/components/app/doctor-connected";
+import { DoctorPatientList, DoctorPatientConnected } from "@/components/app/doctor-connected";
+import { DoctorTemplateListView } from "@/components/app/doctor-templates-list";
 import { DoctorPatientProfileView } from "@/components/app/doctor-patient-profile";
 import { DoctorPatientAssessmentHistoryView } from "@/components/app/doctor-patient-assessments";
 import { DoctorPatientSessionDetailView } from "@/components/app/doctor-patient-session-detail";
-import { ResultsHistory, ResultDetail } from "@/components/app/results-views";
 import { staffIdentity, staffPatients, staffPatientData, staffTemplates, staffCatalog } from "@/lib/doctor-service";
 import { readResults } from "@/lib/results-service";
 import { AccountError } from "@/lib/account-validation";
@@ -14,7 +14,10 @@ import { calculateAge } from "@/lib/birth-date";
 
 export const metadata = { title: "แพทย์และนักกายภาพ | MoRe" };
 export default async function DoctorPage({ params }: { params: Promise<{ segments?: string[] }> }) {
-  const staff = await staffIdentity().catch(error => { if (error instanceof AccountError && error.status === 401) redirect("/doctor/login"); notFound(); });
+  const staff = await staffIdentity().catch(error => {
+    if (error instanceof AccountError && (error.status === 401 || error.status === 403)) redirect("/doctor/login");
+    notFound();
+  });
   const segments = (await params).segments || []; const path = segments.join("/"); let content;
   let patients: Awaited<ReturnType<typeof staffPatients>> = [];
   let templates: Awaited<ReturnType<typeof staffTemplates>> = [];
@@ -75,7 +78,7 @@ export default async function DoctorPage({ params }: { params: Promise<{ segment
     });
     content = <DoctorPatientList patients={mappedPatients} />;
   }
-  else if (path === "templates") content = <DoctorTemplateEditor templates={templates} catalog={catalog} />;
+  else if (path === "templates") content = <DoctorTemplateListView templates={templates} catalog={catalog} />;
   else if (data && session) content = <DoctorPatientSessionDetailView data={data} sessionId={trainingId(segments[3])} />;
   else if (data && segments[2] === "assessments") content = <DoctorPatientAssessmentHistoryView data={data} />;
   else if (data && segments.length === 2) content = <DoctorPatientProfileView data={data} />;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo, useRef } from "react";
-import { ArrowLeft, ArrowRight, User, Calendar, ChevronDown, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, Calendar, ChevronDown, RotateCcw, ClipboardList } from "lucide-react";
 import type { staffPatientData } from "@/lib/doctor-service";
 import { calculateAge } from "@/lib/birth-date";
 
@@ -103,7 +103,8 @@ const EXERCISE_META: Record<
 };
 
 export function DoctorPatientAssessmentHistoryView({ data }: { data: PatientData }) {
-  const { profile, sessions } = data;
+  const { profile, sessions, plan } = data;
+  const planName = plan?.name ? plan.name.replace(/^DEMO\s+/, "") : null;
 
   // Patient basic info
   const age = profile.date_of_birth ? calculateAge(profile.date_of_birth) : null;
@@ -508,7 +509,15 @@ export function DoctorPatientAssessmentHistoryView({ data }: { data: PatientData
               <article className="session-round-card" key={round.roundNumber} id={`session-round-${round.roundNumber}`}>
                 <div className="session-card-main">
                   <div className="session-card-header-row">
-                    <h3 className="session-round-title">กายภาพครั้งที่ {round.roundNumber}</h3>
+                    <div className="session-round-title-group">
+                      <h3 className="session-round-title">กายภาพครั้งที่ {round.roundNumber}</h3>
+                      {planName && (
+                        <span className="session-plan-badge" title={`แผนการฝึก: ${planName}`}>
+                          <ClipboardList size={13} aria-hidden="true" />
+                          <span>แผน: {planName}</span>
+                        </span>
+                      )}
+                    </div>
                     <div className="session-metrics-summary">
                       <span className="session-metric-badge actual">
                         <span className="metric-label">ครั้งที่ทำได้จริง:</span>
@@ -522,7 +531,7 @@ export function DoctorPatientAssessmentHistoryView({ data }: { data: PatientData
                   </div>
 
                   <div className="session-modules-row">
-                    <span className="session-modules-label">ชุดท่าการกายภาพ :</span>
+                    <span className="session-modules-label">ท่าที่ฝึกในรอบนี้ :</span>
                     <div className="session-modules-pills">
                       {Array.from(moduleGroups.entries())
                         .sort(([a], [b]) => a - b)
