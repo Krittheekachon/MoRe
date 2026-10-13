@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app/shell";
 import { DoctorPatientList, DoctorPatientConnected, DoctorTemplateEditor, ConnectedPatientTabs } from "@/components/app/doctor-connected";
+import { DoctorTemplateListView } from "@/components/app/doctor-templates-list";
 import { DoctorPatientProfileView } from "@/components/app/doctor-patient-profile";
 import { DoctorPatientAssessmentHistoryView } from "@/components/app/doctor-patient-assessments";
 import { DoctorPatientSessionDetailView } from "@/components/app/doctor-patient-session-detail";
@@ -75,7 +76,7 @@ export default async function DoctorPage({ params }: { params: Promise<{ segment
     });
     content = <DoctorPatientList patients={mappedPatients} />;
   }
-  else if (path === "templates") content = <DoctorTemplateEditor templates={templates} catalog={catalog} />;
+  else if (path === "templates") content = <DoctorTemplateListView templates={templates} catalog={catalog} />;
   else if (data && session) content = <DoctorPatientSessionDetailView data={data} sessionId={trainingId(segments[3])} />;
   else if (data && segments[2] === "assessments") content = <DoctorPatientAssessmentHistoryView data={data} />;
   else if (data && segments.length === 2) content = <DoctorPatientProfileView data={data} />;
