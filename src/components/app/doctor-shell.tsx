@@ -1,13 +1,14 @@
 "use client";
 
 import { MoreLogo } from "@/components/ui/more-logo";
-import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, Settings, X } from "lucide-react";
+import { CalendarDays, Home, UserRound, UsersRound, ClipboardList, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 
 import { LogoutButton } from "./logout-button";
+import { DisplaySettings } from "./display-settings";
 import type { PatientProfile } from "@/lib/demo-data";
 
 export function DoctorShell({ children, doctor = false, demo = false }: { children: ReactNode; doctor?: boolean; patientProfile?: PatientProfile; demo?: boolean }) {
@@ -43,11 +44,12 @@ export function DoctorShell({ children, doctor = false, demo = false }: { childr
     <div className={`system-app ${doctor ? "doctor-app" : "patient-app"} ${cameraPage ? "camera-workspace" : ""}`}>
       <a className="skip-link" href="#workspace-content">ข้ามไปเนื้อหา</a>
     <header className="app-topbar">
-      {doctor && <button ref={menuRef} className="icon-command mobile-menu" aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} title={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={22} /> : <Settings size={22} />}</button>}
+      {doctor && <button ref={menuRef} className="icon-command mobile-menu" aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} title={menuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>}
       <Link className="app-brand" href={doctor ? "/doctor" : "/patient"}><MoreLogo size="navigation" tagline /></Link>
       <span className="app-role">{doctor ? "แพทย์ / นักกายภาพ" : "ผู้ป่วย"}</span>
       <nav className="topbar-nav" aria-label="เมนูแพทย์">{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="topbar-nav-link" aria-current={isDoctorNavActive(href) ? "page" : undefined}><Icon size={18} /><span>{label}</span></Link>)}</nav>
       {demo && <span className="demo-label" aria-label="DEMO สังเคราะห์">DEMO<span className="demo-label-detail"> สังเคราะห์</span></span>}
+      <DisplaySettings hideAudio />
       <div className="app-logout"><LogoutButton compact={doctor} destination={doctor ? "/doctor/login" : "/"} /></div>
     </header>
       {doctor && menuOpen && (
@@ -94,6 +96,9 @@ export function DoctorShell({ children, doctor = false, demo = false }: { childr
                   <span>{label}</span>
                 </Link>
               ))}
+              <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)" }}>
+                <DisplaySettings labeled className="w-full justify-start" hideAudio />
+              </div>
             </div>
           </nav>
         </>

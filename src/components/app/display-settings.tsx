@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronRight, MoreHorizontal, Moon, Settings, Sun, X } from "lucide-react";
 import { fontSizeCookie, themeCookie, type FontSize, type Theme } from "@/lib/display-settings";
 import { audioConfig, type Voice } from "@/lib/audio/catalog";
@@ -10,16 +11,19 @@ const DisplayContext = createContext<{
   setSize: (size: FontSize) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  open: (trigger: HTMLElement) => void;
+  open: (trigger: HTMLElement, options?: { hideAudio?: boolean }) => void;
   audioEnabled: boolean; voice: Voice;
   setAudio: (enabled: boolean, voice: Voice) => void;
 } | null>(null);
 
 export function DisplaySettingsProvider({ initialSize, initialTheme, initialAudioEnabled = audioConfig.enabled, initialVoice = audioConfig.voice, children }: { initialSize: FontSize; initialTheme: Theme; initialAudioEnabled?: boolean; initialVoice?: Voice; children: ReactNode }) {
+  const pathname = usePathname();
   const [size, setCurrentSize] = useState(initialSize);
   const [theme, setCurrentTheme] = useState(initialTheme);
   const [audioEnabled, setAudioEnabled] = useState(initialAudioEnabled);
   const [voice, setVoice] = useState(initialVoice);
+  const [modalHideAudio, setModalHideAudio] = useState(false);
+
   function setAudio(enabled: boolean, nextVoice: Voice) {
     setAudioEnabled(enabled); setVoice(nextVoice);
     savePreference("more-audio-enabled", enabled ? "1" : "0"); savePreference("more-audio-voice", nextVoice);
@@ -27,8 +31,11 @@ export function DisplaySettingsProvider({ initialSize, initialTheme, initialAudi
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef("");
-  function open(trigger: HTMLElement) {
+
+  function open(trigger: HTMLElement, options?: { hideAudio?: boolean }) {
     triggerRef.current = trigger;
+    const isDoctor = Boolean(pathname && (pathname.startsWith("/doctor") || pathname === "/forgot-password"));
+    setModalHideAudio(options?.hideAudio ?? isDoctor);
     scrollRef.current = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     dialogRef.current?.showModal();
@@ -63,7 +70,7 @@ export function DisplaySettingsProvider({ initialSize, initialTheme, initialAudi
     }} onClick={event => { if (event.target === event.currentTarget) dialogRef.current?.close(); }}>
       <div className="display-panel">
         <header><h2 id="display-settings-title"><Settings size={22} aria-hidden="true" />การแสดงผล</h2><button type="button" className="icon-command" aria-label="ปิดการแสดงผล" onClick={() => dialogRef.current?.close()}><X size={22} /></button></header>
-        <DisplayOptions />
+        <DisplayOptions hideAudio={modalHideAudio} />
         <button type="button" className="command primary display-done" onClick={() => dialogRef.current?.close()}>เสร็จสิ้น</button>
       </div>
     </dialog>
@@ -76,25 +83,25 @@ export function useTrainingAudioSettings() {
   return settings;
 }
 
-export function DisplaySettings({ className = "", labeled = false }: { className?: string; labeled?: boolean }) {
+export function DisplaySettings({ className = "", labeled = false, hideAudio }: { className?: string; labeled?: boolean; hideAudio?: boolean }) {
   const settings = useContext(DisplayContext);
   if (!settings) throw new Error("DisplaySettingsProvider is required");
-  return <button type="button" className={`${labeled ? "command" : "icon-command"} display-trigger ${className}`} aria-label="การแสดงผล" title="การแสดงผล" aria-haspopup="dialog" onClick={event => settings.open(event.currentTarget)}><Settings size={22} aria-hidden="true" />{labeled && <><span>การแสดงผล</span><ChevronRight size={20} aria-hidden="true" /></>}</button>;
+  return <button type="button" className={`${labeled ? "command" : "icon-command"} display-trigger ${className}`} aria-label="การแสดงผล" title="การแสดงผล" aria-haspopup="dialog" onClick={event => settings.open(event.currentTarget, hideAudio !== undefined ? { hideAudio } : undefined)}><Settings size={22} aria-hidden="true" />{labeled && <><span>การแสดงผล</span><ChevronRight size={20} aria-hidden="true" /></>}</button>;
 }
 
-export function DisplayMenu({ navigation = false }: { navigation?: boolean }) {
+export function DisplayMenu({ navigation = false, hideAudio }: { navigation?: boolean; hideAudio?: boolean }) {
   const settings = useContext(DisplayContext);
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const triggerRef = useRef<HTMLElement>(null);
   if (!settings) throw new Error("DisplaySettingsProvider is required");
-  if (navigation) return <DisplaySettings />;
+  if (navigation) return <DisplaySettings hideAudio={hideAudio} />;
   return <details ref={detailsRef} className="display-menu" onKeyDown={event => { if (event.key === "Escape") { detailsRef.current?.removeAttribute("open"); triggerRef.current?.focus(); } }}>
     <summary ref={triggerRef} className="icon-command" aria-label="เมนูเพิ่มเติม" title="เมนูเพิ่มเติม"><MoreHorizontal size={24} /></summary>
-    <div className="display-menu-items"><button type="button" className="command" onClick={() => { detailsRef.current?.removeAttribute("open"); if (triggerRef.current) settings.open(triggerRef.current); }}><Settings size={20} aria-hidden="true" />การแสดงผล</button></div>
+    <div className="display-menu-items"><button type="button" className="command" onClick={() => { detailsRef.current?.removeAttribute("open"); if (triggerRef.current) settings.open(triggerRef.current, hideAudio !== undefined ? { hideAudio } : undefined); }}><Settings size={20} aria-hidden="true" />การแสดงผล</button></div>
   </details>;
 }
 
-function DisplayOptions() {
+function DisplayOptions({ hideAudio = false }: { hideAudio?: boolean }) {
   const settings = useContext(DisplayContext);
   const [systemDark, setSystemDark] = useState(false);
   useEffect(() => {
@@ -108,7 +115,20 @@ function DisplayOptions() {
   const effectiveTheme = settings.theme === "system" ? (systemDark ? "dark" : "light") : settings.theme;
   return (
     <section className="display-settings">
-      <fieldset><legend>เสียงระหว่างฝึก</legend><label><input type="checkbox" checked={settings.audioEnabled} onChange={event => settings.setAudio(event.target.checked, settings.voice)} /> เปิดเสียง</label><div className="theme-options">{(["male", "female"] as const).map(voice => <label key={voice}><input type="radio" name="training-voice" checked={settings.voice === voice} onChange={() => settings.setAudio(settings.audioEnabled, voice)} /><span>{voice === "male" ? "เสียงชาย" : "เสียงหญิง"}</span></label>)}</div></fieldset>
+      {!hideAudio && (
+        <fieldset>
+          <legend>เสียงระหว่างฝึก</legend>
+          <label><input type="checkbox" checked={settings.audioEnabled} onChange={event => settings.setAudio(event.target.checked, settings.voice)} /> เปิดเสียง</label>
+          <div className="theme-options">
+            {(["male", "female"] as const).map(voice => (
+              <label key={voice}>
+                <input type="radio" name="training-voice" checked={settings.voice === voice} onChange={() => settings.setAudio(settings.audioEnabled, voice)} />
+                <span>{voice === "male" ? "เสียงชาย" : "เสียงหญิง"}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
       <fieldset>
         <legend>ขนาดตัวอักษร</legend>
         <div className="font-size-options">
@@ -141,7 +161,7 @@ function DisplayOptions() {
           })}
         </div>
       </fieldset>
-      <p className="display-preview">ตัวอย่างข้อความ<br />ฝึกอย่างมั่นใจ ในจังหวะของคุณ</p>
+      <p className="display-preview">ตัวอย่างข้อความ<br />{hideAudio ? "ระบบติดตามและฟื้นฟูสมรรถภาพ MoRe" : "ฝึกอย่างมั่นใจ ในจังหวะของคุณ"}</p>
     </section>
   );
 }
