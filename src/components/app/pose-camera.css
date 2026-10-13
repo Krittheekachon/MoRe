@@ -75,3 +75,12 @@
 }
 
 .pose-side-value { display: block; font-size: 1.25rem; font-weight: 700; }
+
+/* Preflight stays in the control region; camera remains full viewport. */
+.pose-chain-check { position: fixed; z-index: 7; left: 16px; right: 16px; top: 100px; max-width: 640px; margin-inline: auto; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--ui-surface); max-height: 35dvh; overflow: auto; }
+.pose-chain-check p { margin-block: 8px; }
+@media (orientation: landscape) and (max-height: 600px) { .pose-chain-check { top: 85px; max-height: 30dvh; padding: 10px; } }
+
+.pose-session[data-inspecting="true"] .camera-summary { display: none; }
+.pose-chain-check details { margin-block: 8px; }
+.pose-chain-check summary { cursor: pointer; }

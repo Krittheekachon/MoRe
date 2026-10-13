@@ -1,0 +1,12 @@
+// Real Full/Heavy workers on a blank synthetic video; not human-pose accuracy.
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+async sessionPage => {
+const origin=new URL(sessionPage.url()).origin,context=await sessionPage.context().browser().newContext();const p=await context.newPage();let checks=0;const check=(v,l)=>{if(!v)throw Error(l);checks++};
+try{
+await context.request.post(origin+'/api/auth/login',{headers:{Origin:origin},data:{nationalId:'dev',password:'password'}});
+await p.addInitScript(()=>{window.__workers={alive:0,max:0,ready:[],frames:[]};const Native=Worker;window.Worker=class extends Native{dead=false;model="";postMessage(m,...args){if(m.type==="init")this.model=m.model;super.postMessage(m,...args)}constructor(...args){super(...args);this.addEventListener("message",e=>{if(e.data.type==="ready")window.__workers.ready.push(this.model);if(e.data.type==="pose")window.__workers.frames.push(this.model)});window.__workers.alive++;window.__workers.max=Math.max(window.__workers.max,window.__workers.alive)}terminate(){if(!this.dead){this.dead=true;window.__workers.alive--}super.terminate()}};Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{const c=document.createElement('canvas');c.width=640;c.height=480;setInterval(()=>{c.getContext('2d').fillStyle='#888';c.getContext('2d').fillRect(0,0,640,480)},100);return c.captureStream(10)}})});
+await p.goto(origin+'/developer');await p.locator('.developer-controls select').selectOption('full');await p.getByRole('button',{name:'ซ้าย',exact:true}).click();await p.getByRole('button',{name:'เปิดกล้อง',exact:true}).click();
+await p.waitForFunction(()=>window.__workers.ready.includes("full")&&window.__workers.frames.includes("full"),{},{timeout:60000});check(true,'Full initialized');check(await p.getByRole('button',{name:'เริ่ม',exact:true}).isEnabled(),'blank can arm preparation but has no acquired baseline');
+await p.locator('.developer-controls select').selectOption('heavy');await p.waitForFunction(()=>window.__workers.ready.includes("heavy")&&window.__workers.frames.includes("heavy"),{},{timeout:60000});check(true,'Heavy initialized');check(await p.evaluate(()=>window.__workers.max===1),'single real worker');await p.getByRole('button',{name:'ปิดกล้อง',exact:true}).click();await p.waitForFunction(()=>window.__workers.alive===0);check(true,'worker disposed');return {checks,realMediaPipe:true,blankVideo:true,humanAccuracyMeasured:false};
+}finally{await context.close()}
+}

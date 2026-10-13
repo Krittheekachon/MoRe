@@ -1,4 +1,5 @@
 import "server-only";
+import { exerciseDisplayName } from "./exercise-display";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
@@ -24,7 +25,7 @@ type Plan = Prisma.RehabilitationPlanGetPayload<{ include: typeof planRelations 
 type Exercise = Prisma.ExerciseGetPayload<{ include: typeof exerciseRelations }>;
 
 function exerciseDTO(exercise: Exercise): TrainingExercise {
-  return { id: exercise.id, code: exercise.code, name: exercise.code === demoExerciseCode && cameraTestEnabled() ? "นั่งเหยียดขา - Seated Knee Extension" : exercise.name_th, english: exercise.name_en || "", module: exercise.module.module_number, moduleName: exercise.module.name_th, view: exercise.camera_view, supportsSide: exercise.supports_side_selection, tutorial: exercise.tutorial_steps };
+  return { id: exercise.id, code: exercise.code, name: exerciseDisplayName(exercise), english: exercise.name_en || "", module: exercise.module.module_number, moduleName: exercise.module.name_th, view: exercise.camera_view, supportsSide: exercise.supports_side_selection, tutorial: exercise.tutorial_steps };
 }
 
 function validTemplate(template: Template) {
@@ -182,9 +183,9 @@ export async function readTrainingHistory(patientId: number, now = new Date()): 
   const start = new Date(today.getTime() - 6 * 86400000);
   const records = await prisma.exerciseSet.findMany({ where: { status: "saved", session: { dailyExercise: { exercise: { code: testDay ? demoExerciseCode : { not: demoExerciseCode } }, day: { patient_id: patientId, local_date: { gte: start, lte: today } } } } }, orderBy: [{ saved_at: "desc" }, { id: "desc" }], select: {
     id: true, target_reps: true, elapsed_seconds: true, _count: { select: { repetitions: true } },
-    session: { select: { dailyExercise: { select: { exercise: { select: { name_th: true } }, day: { select: { local_date: true } } } } } },
+    session: { select: { dailyExercise: { select: { exercise: { select: { name_th: true, code: true } }, day: { select: { local_date: true } } } } } },
   } });
-  const recent = records.slice(0, 3).map(set => ({ id: set.id, date: set.session.dailyExercise.day.local_date.toISOString().slice(0, 10), exercise: set.session.dailyExercise.exercise.name_th, reps: set._count.repetitions, targetReps: set.target_reps, seconds: set.elapsed_seconds }));
+  const recent = records.slice(0, 3).map(set => ({ id: set.id, date: set.session.dailyExercise.day.local_date.toISOString().slice(0, 10), exercise: exerciseDisplayName(set.session.dailyExercise.exercise), reps: set._count.repetitions, targetReps: set.target_reps, seconds: set.elapsed_seconds }));
   const week = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(start.getTime() + i * 86400000).toISOString().slice(0, 10);
     return { date, count: records.filter(set => set.session.dailyExercise.day.local_date.toISOString().slice(0, 10) === date).length };

@@ -1,4 +1,5 @@
 import "server-only";
+import { exerciseDisplayName } from "./exercise-display";
 import { prisma } from "./prisma";
 import { readDailyTraining } from "./training-service";
 import { routineProgress } from "./routine-progress";
@@ -29,7 +30,7 @@ export async function readPatientProgress(patientId: number, dailyId?: number) {
     const progress = routineProgress(item.target_sets, item.target_reps_per_set, item.selected_side, sets);
     const angleGroups = new Map<string, { label: string; values: number[] }>();
     for (const set of sets) for (const a of set.angles) { const group = angleGroups.get(a.key) ?? { label: a.label, values: [] }; group.values.push(...a.values); angleGroups.set(a.key, group); }
-    return { id: item.id, date: item.day.local_date.toISOString().slice(0, 10), code: item.exercise.code, name: item.exercise.name_th,
+    return { id: item.id, date: item.day.local_date.toISOString().slice(0, 10), code: item.exercise.code, name: exerciseDisplayName(item.exercise),
       module: item.exercise.module.module_number, moduleName: item.exercise.module.name_th,
       isTest: item.exercise.code.startsWith("demo-") || isMockPlan(item.planExercise.plan.sourceTemplate?.template_code),
       side: item.selected_side, targetSetsPerSide: item.target_sets, targetReps: item.target_reps_per_set,

@@ -1,5 +1,11 @@
 # MoRe Scope and Stack
 
+Automatic preparation (2026-10-13): Start once, then stable trusted start pose automatically acquires chain baseline and starts existing countdown. Manual confirmation removed by user decision; anatomical identity remains unverified. Supersedes manual preflight entries below. See [tracking reliability](pose-tracking-accuracy.md).
+
+Ankle/proportion extension (2026-10-13): optional confirmed ankle–heel–toe geometry guard, loose-cuff guidance and synthetic individual-proportion/camera-scale cases. No fixed human leg ratio, auxiliary visibility gate or angle/DB change. Human multi-person and iPad results remain unmeasured. See [tracking reliability](pose-tracking-accuracy.md).
+
+Selected-leg tracking update (2026-10-13): mock preflight confirmation, frozen segment continuity guard and developer-only Full/Heavy comparison. User clarified to retain current v7 torso 80–115° / knee 155–180°. No engine criteria/DB changes. See [tracking reliability](pose-tracking-accuracy.md); human-clothing clips and physical iPad accuracy remain unmeasured.
+
 Primary-doctor feature removed across profile/UI/API/schema by user instruction. Doctor login, patient list and training integration remain. See patient-doctor-integration.md and removal migration.
 
 Latest camera mock criteria v7: correct knee peak 155–180°, inclusive. Retains the user-edited torso range 80–115°. Historical v6 (165–170°) and saved results retained. See mock-readiness-v4.md; sync checkpoints with node scripts/sync-camera-criteria.mjs.

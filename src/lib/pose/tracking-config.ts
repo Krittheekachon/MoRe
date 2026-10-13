@@ -14,3 +14,15 @@ export const poseTrackingConfig = {
   minBodyScale: 0.75,
   maxBodyScale: 2,
 };
+
+// Experimental selected-leg guards. Distances are fractions of the confirmed
+// shorter leg segment per second, not pixels. 2D foreshortening is a limitation.
+export const chainTrackingConfig = {
+  confirmStableMs: 500, maxGapMs: 500, reacquireMs: 400,
+  baselineLengthTolerance: 0.45, frameLengthAllowance: 0.10, frameLengthSpeed: 2,
+  hipAllowance: 0.12, hipSpeed: 1.5,
+  pointAllowance: 0.20, pointSpeed: 8,
+  // Optional ankle/heel/toe geometry, normalized by this person's shin.
+  footGeometryAllowance: 0.20, footGeometryTolerance: 0.60,
+  swapSeparation: 0.25, swapMovement: 0.20, swapRatio: 0.45,
+};

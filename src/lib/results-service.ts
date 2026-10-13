@@ -1,4 +1,5 @@
 import "server-only";
+import { exerciseDisplayName } from "./exercise-display";
 import { prisma } from "./prisma";
 import { AccountError } from "./account-validation";
 import { isMockPlan } from "./mock-plan";
@@ -10,7 +11,7 @@ export async function readResults(patientId: number, sessionId?: number) {
       sets: { where: { status: "saved" }, orderBy: { set_number: "asc" }, include: { repetitions: { orderBy: { rep_number: "asc" }, include: { metrics: { include: { metric: { select: { label_th: true, definition_version: true } } } }, checkpointResults: { include: { checkpoint: { select: { phase: true } } } } } } } },
     } });
   if (sessionId && !sessions.length) throw new AccountError("ไม่พบผลการฝึก", 404);
-  return sessions.map(session => ({ id: session.id, date: session.dailyExercise.day.local_date.toISOString().slice(0, 10), startedAt: session.started_at.toISOString(), exercise: session.dailyExercise.exercise.name_th, code: session.dailyExercise.exercise.code,
+  return sessions.map(session => ({ id: session.id, date: session.dailyExercise.day.local_date.toISOString().slice(0, 10), startedAt: session.started_at.toISOString(), exercise: exerciseDisplayName(session.dailyExercise.exercise), code: session.dailyExercise.exercise.code,
     isMock: isMockPlan(session.dailyExercise.planExercise.plan.sourceTemplate?.template_code),
     sourceTemplate: session.dailyExercise.planExercise.plan.sourceTemplate ? { code: session.dailyExercise.planExercise.plan.sourceTemplate.template_code, name: session.dailyExercise.planExercise.plan.sourceTemplate.name_th, version: session.dailyExercise.planExercise.version_number } : null,
     sets: session.sets.map(set => ({ id: set.id, number: set.set_number, target: set.target_reps, elapsed: set.elapsed_seconds, savedAt: set.saved_at?.toISOString() ?? null,
