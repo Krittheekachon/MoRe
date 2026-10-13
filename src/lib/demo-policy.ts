@@ -22,7 +22,7 @@ export async function isDemoPatient(id: number) {
 }
 export async function isDemoStaff(id: number) {
   const manifest = await demoManifest();
-  return manifest?.doctorId === id && !!await prisma.user.findFirst({ where: { id, login_name: demoDoctorLoginName, role: "doctor", is_active: true }, select: { id: true } });
+  return manifest?.doctorId === id && !!await prisma.user.findFirst({ where: { id, login_name: { in: [demoDoctorLoginName, "more-demo-doctor", "doctor"] }, role: "doctor", is_active: true }, select: { id: true } });
 }
 // Shared engineering template is available in development; production requires opt-in.
 export function cameraTestEnabled() { return process.env.MORE_CAMERA_TEST_MODE === "1" || (process.env.NODE_ENV === "development" && process.env.MORE_CAMERA_TEST_MODE !== "0"); }

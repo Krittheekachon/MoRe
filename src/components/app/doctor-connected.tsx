@@ -7,6 +7,7 @@ import { PageHeading, EmptyState } from "./shell";
 import type { staffPatientData, staffTemplates, staffCatalog } from "@/lib/doctor-service";
 import { ResultsHistory } from "./results-views";
 import { requestId as newRequestId } from "@/lib/request-id";
+import { getPrototypeDoctorPatients } from "@/lib/prototype-doctor-patients";
 
 async function submit(url: string, method: string, body: unknown) {
   const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -52,12 +53,12 @@ const PAGE_SIZE_STORAGE_KEY = "more_doctor_page_size";
 
 export function DoctorPatientList({ patients }: { patients: DoctorPatient[] }) {
   const [query, setQuery] = useState("");
-  const [pageSize, setPageSize] = useState(10);
-  const [pageSizeInput, setPageSizeInput] = useState("10");
+  const [pageSize, setPageSize] = useState(9);
+  const [pageSizeInput, setPageSizeInput] = useState("9");
   const [page, setPage] = useState(0);
 
   const displayPatients = useMemo(() => {
-    return patients;
+    return patients.length >= 9 ? patients : getPrototypeDoctorPatients(patients);
   }, [patients]);
 
   useEffect(() => {
