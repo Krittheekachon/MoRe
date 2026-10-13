@@ -3005,41 +3005,60 @@ html[data-theme="dark"] .doctor-app .reps-correct-tag {
   outline: none;
 }
 
-.frequency-selector {
+/* Daily Frequency presets */
+.frequency-quick-presets {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
 }
 
-.frequency-btn {
-  flex: 1;
-  padding: 7px 8px;
-  border: 1px solid #C4DAD0;
-  border-radius: 8px;
-  background: #FFFFFF;
-  color: var(--ink);
-  font-size: 0.8125rem;
+.freq-preset-btn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #D6D2CA;
+  background: #F9F8F6;
+  color: #4A5568;
+  font-size: 0.6875rem;
   font-weight: 500;
   cursor: pointer;
-  position: relative;
   transition: all 0.15s ease;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 
-.frequency-btn.active {
+.freq-preset-btn:hover {
+  background: #EFECE6;
+  border-color: #B5B0A4;
+}
+
+.freq-preset-btn.active {
   background: #1B4D3E;
   color: #FFFFFF;
   border-color: #1B4D3E;
   font-weight: 600;
 }
 
-.rec-tag {
-  display: block;
-  font-size: 0.625rem;
-  color: #10B981;
+/* Daily Workload calculation note */
+.config-workload-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #166534;
+  font-size: 0.75rem;
+  margin-top: 2px;
 }
 
-.frequency-btn.active .rec-tag {
-  color: #A7F3D0;
+.config-workload-note strong {
+  color: #14532D;
+}
+
+.config-workload-note .sub {
+  color: #15803D;
+  font-size: 0.6875rem;
 }
 
 /* Schedule */
@@ -3071,32 +3090,195 @@ html[data-theme="dark"] .doctor-app .reps-correct-tag {
   cursor: pointer;
 }
 
-.weekdays-selector {
+/* Weekday Picker Container */
+.weekdays-picker-container {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 4px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #FAF8F5;
+  border: 1px solid #E8E3DA;
+  border-radius: 10px;
+  margin-top: 6px;
 }
 
-.weekday-pill {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid #C4DAD0;
-  background: #FFFFFF;
-  color: var(--ink);
+.weekdays-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.weekdays-preset-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-label {
   font-size: 0.75rem;
   font-weight: 600;
-  display: grid;
-  place-items: center;
+  color: #4A5568;
+}
+
+.preset-btn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #D6D2CA;
+  background: #FFFFFF;
+  color: var(--ink);
+  font-size: 0.6875rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.weekday-pill.active {
+.preset-btn:hover {
+  background: #EFECE6;
+  border-color: #1B4D3E;
+  color: #1B4D3E;
+}
+
+.preset-btn.text-muted {
+  color: #718096;
+}
+
+.preset-btn.text-muted:hover {
+  color: #DC2626;
+  border-color: #FECACA;
+  background: #FEF2F2;
+}
+
+.weekdays-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.6875rem;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.legend-chip.legend-active {
   background: #1B4D3E;
   color: #FFFFFF;
-  border-color: #1B4D3E;
+}
+
+.legend-chip.legend-inactive {
+  background: #E2E8F0;
+  color: #64748B;
+}
+
+/* 7-Day Chips Row */
+.weekdays-chips-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weekday-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.weekday-chip.selected {
+  background: #1B4D3E;
+  color: #FFFFFF;
+  border: 1.5px solid #1B4D3E;
+  box-shadow: 0 1px 3px rgba(27, 77, 62, 0.2);
+}
+
+.weekday-chip.selected:hover {
+  background: #153E32;
+  border-color: #153E32;
+}
+
+.weekday-chip.unselected {
+  background: #FFFFFF;
+  color: #64748B;
+  border: 1.5px dashed #CBD5E1;
+}
+
+.weekday-chip.unselected:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #334155;
+}
+
+.chip-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.chip-empty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #94A3B8;
+}
+
+.weekday-chip.unselected:hover .chip-empty-dot {
+  border-color: #64748B;
+}
+
+.chip-name {
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+
+/* Weekday Summary Status */
+.weekdays-summary-status {
+  padding-top: 4px;
+  border-top: 1px dashed #E2DCD3;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.weekdays-summary-status .status-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #DC2626;
+  font-weight: 600;
+}
+
+.weekdays-summary-status .status-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #166534;
+  font-weight: 600;
+}
+
+.weekdays-summary-status .status-info {
+  color: #2D3748;
+}
+
+.weekdays-summary-status .status-info strong {
+  color: #1B4D3E;
+}
+
+.weekdays-summary-status .rest-days {
+  color: #718096;
 }
 
 .config-instructions {

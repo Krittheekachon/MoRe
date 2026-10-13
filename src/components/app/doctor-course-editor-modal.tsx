@@ -2,10 +2,20 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { X, Save, AlertCircle, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { X, Save, AlertCircle, ChevronDown, ChevronUp, Sparkles, Check } from "lucide-react";
 import { MASTER_EXERCISE_MODULES, type MasterExercise } from "@/lib/exercise-master-catalog";
 import { requestId as newRequestId } from "@/lib/request-id";
 import type { TemplateItem, CatalogItem } from "./doctor-templates-list";
+
+const WEEKDAY_OPTIONS = [
+  { day: 1, short: "จ.", full: "จันทร์" },
+  { day: 2, short: "อ.", full: "อังคาร" },
+  { day: 3, short: "พ.", full: "พุธ" },
+  { day: 4, short: "พฤ.", full: "พฤหัสบดี" },
+  { day: 5, short: "ศ.", full: "ศุกร์" },
+  { day: 6, short: "ส.", full: "เสาร์" },
+  { day: 7, short: "อา.", full: "อาทิตย์" },
+] as const;
 
 type ExerciseConfig = {
   exerciseId: number;
@@ -161,6 +171,14 @@ export function DoctorCourseEditorModal({
     const selectedList = Object.values(configs);
     if (selectedList.length === 0) {
       setErrorStatus("กรุณาเลือกท่าการฝึกอย่างน้อย 1 ท่า");
+      return;
+    }
+
+    const emptyWeekly = selectedList.find(
+      (item) => item.schedule === "weekly" && (!item.weekdays || item.weekdays.length === 0)
+    );
+    if (emptyWeekly) {
+      setErrorStatus("กรุณาเลือกวันฝึกอย่างน้อย 1 วัน สำหรับท่าที่ตั้งค่าตารางแบบเลือกวัน");
       return;
     }
 
@@ -401,20 +419,38 @@ export function DoctorCourseEditorModal({
                                       {/* Sessions per day (Daily Frequency) */}
                                       <div className="config-field">
                                         <label>ความถี่ต่อวัน (รอบ/วัน)</label>
-                                        <div className="frequency-selector">
-                                          {[1, 2, 3].map((num) => (
+                                        <div className="number-input-wrap">
+                                          <input
+                                            type="number"
+                                            min={1}
+                                            max={10}
+                                            required
+                                            value={config.frequency}
+                                            onChange={(e) =>
+                                              updateConfig(exercise.code, {
+                                                frequency: Math.max(1, Math.min(10, Number(e.target.value) || 1)),
+                                              })
+                                            }
+                                          />
+                                          <span className="unit">รอบ/วัน</span>
+                                        </div>
+                                        <div className="frequency-quick-presets">
+                                          {[
+                                            { val: 1, label: "1 รอบ" },
+                                            { val: 2, label: "2 รอบ (แนะนำ)" },
+                                            { val: 3, label: "3 รอบ" },
+                                          ].map(({ val, label }) => (
                                             <button
-                                              key={num}
+                                              key={val}
                                               type="button"
-                                              className={`frequency-btn ${
-                                                config.frequency === num ? "active" : ""
+                                              className={`freq-preset-btn ${
+                                                config.frequency === val ? "active" : ""
                                               }`}
                                               onClick={() =>
-                                                updateConfig(exercise.code, { frequency: num })
+                                                updateConfig(exercise.code, { frequency: val })
                                               }
                                             >
-                                              {num} รอบ/วัน
-                                              {num === 2 && <span className="rec-tag">แนะนำ</span>}
+                                              {label}
                                             </button>
                                           ))}
                                         </div>
@@ -439,6 +475,14 @@ export function DoctorCourseEditorModal({
                                           </select>
                                         </div>
                                       )}
+                                    </div>
+
+                                    {/* Daily Workload Summary Note */}
+                                    <div className="config-workload-note">
+                                      <span className="workload-icon">💡</span>
+                                      <span>
+                                        เป้าหมายรวม: <strong>{config.sets * config.frequency} เซต/วัน</strong> ({config.sets} เซต × {config.frequency} รอบ = {config.sets * config.reps * config.frequency} ครั้ง/วัน)
+                                      </span>
                                     </div>
 
                                     {/* Schedule Type (Daily vs Weekly) */}
@@ -470,32 +514,129 @@ export function DoctorCourseEditorModal({
                                       </div>
 
                                       {config.schedule === "weekly" && (
-                                        <div className="weekdays-selector">
-                                          {[
-                                            { d: 1, label: "จ." },
-                                            { d: 2, label: "อ." },
-                                            { d: 3, label: "พ." },
-                                            { d: 4, label: "พฤ." },
-                                            { d: 5, label: "ศ." },
-                                            { d: 6, label: "ส." },
-                                            { d: 7, label: "อา." },
-                                          ].map((dayItem) => {
-                                            const isDaySelected = config.weekdays.includes(dayItem.d);
-                                            return (
+                                        <div className="weekdays-picker-container">
+                                          {/* Quick presets & legend */}
+                                          <div className="weekdays-controls-bar">
+                                            <div className="weekdays-preset-group">
+                                              <span className="preset-label">เลือกด่วน:</span>
                                               <button
-                                                key={dayItem.d}
                                                 type="button"
-                                                className={`weekday-pill ${
-                                                  isDaySelected ? "active" : ""
-                                                }`}
+                                                className="preset-btn"
                                                 onClick={() =>
-                                                  toggleWeekday(exercise.code, dayItem.d)
+                                                  updateConfig(exercise.code, {
+                                                    weekdays: [1, 2, 3, 4, 5, 6, 7],
+                                                  })
                                                 }
                                               >
-                                                {dayItem.label}
+                                                ทุกวัน
                                               </button>
-                                            );
-                                          })}
+                                              <button
+                                                type="button"
+                                                className="preset-btn"
+                                                onClick={() =>
+                                                  updateConfig(exercise.code, {
+                                                    weekdays: [1, 2, 3, 4, 5],
+                                                  })
+                                                }
+                                              >
+                                                จ.-ศ.
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className="preset-btn"
+                                                onClick={() =>
+                                                  updateConfig(exercise.code, {
+                                                    weekdays: [1, 3, 5],
+                                                  })
+                                                }
+                                              >
+                                                วันเว้นวัน (จ, พ, ศ)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className="preset-btn text-muted"
+                                                onClick={() =>
+                                                  updateConfig(exercise.code, {
+                                                    weekdays: [],
+                                                  })
+                                                }
+                                              >
+                                                ล้าง
+                                              </button>
+                                            </div>
+                                            <div className="weekdays-legend">
+                                              <span className="legend-chip legend-active">
+                                                <Check size={11} strokeWidth={3} /> เลือกฝึก
+                                              </span>
+                                              <span className="legend-chip legend-inactive">
+                                                ○ วันพัก
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {/* 7 Day selector chips */}
+                                          <div className="weekdays-chips-row">
+                                            {WEEKDAY_OPTIONS.map(({ day, short, full }) => {
+                                              const isSelected = config.weekdays.includes(day);
+                                              return (
+                                                <button
+                                                  key={day}
+                                                  type="button"
+                                                  className={`weekday-chip ${
+                                                    isSelected ? "selected" : "unselected"
+                                                  }`}
+                                                  onClick={() =>
+                                                    toggleWeekday(exercise.code, day)
+                                                  }
+                                                  aria-pressed={isSelected}
+                                                  title={
+                                                    isSelected
+                                                      ? `เลือกวัน${full}อยู่ (คลิกเพื่อเว้น)`
+                                                      : `ไม่ได้เลือกวัน${full} (คลิกเพื่อฝึก)`
+                                                  }
+                                                >
+                                                  <span className="chip-indicator">
+                                                    {isSelected ? (
+                                                      <Check size={12} strokeWidth={3} />
+                                                    ) : (
+                                                      <span className="chip-empty-dot" />
+                                                    )}
+                                                  </span>
+                                                  <span className="chip-name">{short}</span>
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+
+                                          {/* Human readable summary status below */}
+                                          <div className="weekdays-summary-status">
+                                            {config.weekdays.length === 0 ? (
+                                              <span className="status-warning">
+                                                <AlertCircle size={14} /> ยังไม่ได้เลือกวันฝึก (กรุณาเลือกอย่างน้อย 1 วัน)
+                                              </span>
+                                            ) : config.weekdays.length === 7 ? (
+                                              <span className="status-success">
+                                                <Check size={14} /> เลือกฝึกทุกวัน (7 วัน/สัปดาห์)
+                                              </span>
+                                            ) : (
+                                              <span className="status-info">
+                                                <strong>เลือก {config.weekdays.length} วัน:</strong>{" "}
+                                                {WEEKDAY_OPTIONS.filter((w) =>
+                                                  config.weekdays.includes(w.day)
+                                                )
+                                                  .map((w) => w.full)
+                                                  .join(", ")}
+                                                <span className="rest-days">
+                                                  {" "}• พัก:{" "}
+                                                  {WEEKDAY_OPTIONS.filter(
+                                                    (w) => !config.weekdays.includes(w.day)
+                                                  )
+                                                    .map((w) => w.full)
+                                                    .join(", ")}
+                                                </span>
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
                                       )}
                                     </div>
