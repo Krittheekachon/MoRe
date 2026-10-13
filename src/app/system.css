@@ -286,47 +286,743 @@ html[data-size="xl"] .patient-profile-page .profile-fields { grid-template-colum
 .template-option details { margin: 12px 0 0 38px; }
 .template-option summary { min-height: 44px; padding: 10px 0; cursor: pointer; color: var(--brand); }
 .template-option li { padding: 12px 0; border-top: 1px solid var(--ui-line-soft); }
-.exercise-picker { max-width: 100%; }
-.exercise-picker .page-heading { margin-bottom: 24px; }
-.exercise-picker .page-heading h1 { font-size: 2rem; line-height: 1.25; color: #09251d; }
-.exercise-picker .page-heading p { font-size: 1rem; color: #536a60; }
-.exercise-picker-notice { display: flex; align-items: center; gap: 14px; min-height: 60px; margin: 0 0 20px; padding: 16px 24px; border-left: 5px solid #aa6500; border-radius: 6px; background: #fff3d8; color: #1d2c25; }
-.exercise-picker-notice svg { flex: 0 0 auto; color: #aa6500; }
-.exercise-picker-search { display: flex; align-items: center; gap: 12px; min-height: 60px; margin-bottom: 16px; padding: 0 18px; border: 1.5px solid #c5e3d0; border-radius: 10px; background: var(--ui-surface); color: #4d675c; }
-.exercise-picker-search input { border: 0 !important; padding: 0 !important; min-height: 56px !important; box-shadow: none; }
-.exercise-picker-search input:focus { outline: 0; }
-.exercise-picker-search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgb(19 124 75 / 14%); }
-.exercise-picker-modules { display: grid; gap: 16px; }
-.exercise-picker-module { border: 1.5px solid #c5e3d0; border-radius: 14px; background: var(--ui-surface); overflow: hidden; }
-.exercise-picker-module summary, .exercise-picker-module-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 66px; padding: 18px 24px; cursor: pointer; font-size: 1rem; font-weight: 700; color: #09251d; list-style: none; }
-.exercise-picker-module-disabled { background: #f0f3f1; border-color: #d8e0da; }
-.exercise-picker-module-heading:disabled { width: 100%; border: 0; background: transparent; text-align: left; font-family: inherit; color: #65756b; cursor: not-allowed; opacity: 1; }
-.exercise-picker-module-heading b { color: inherit; }
-.exercise-picker-module-heading small { display: block; margin-top: 4px; font-size: 0.875rem; font-weight: 400; }
-.exercise-picker-module-heading svg { flex: 0 0 auto; }
-.exercise-picker-module summary::-webkit-details-marker { display: none; }
-.exercise-picker-module summary b { color: var(--brand); }
-.exercise-picker-module summary svg { flex: 0 0 auto; transition: transform .18s ease; }
-.exercise-picker-module[open] summary { border-bottom: 1px solid var(--ui-line-soft); }
-.exercise-picker-module[open] summary svg { transform: rotate(180deg); }
-.exercise-picker-options { display: grid; gap: 0; padding: 6px 24px 12px; }
-.exercise-picker-option { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 14px; align-items: center; min-height: 58px; padding: 10px 0; border-bottom: 1px solid var(--ui-line-soft); cursor: pointer; }
-.exercise-picker-option:last-child { border-bottom: 0; }
-.exercise-picker-option:has(input:disabled) { color: var(--muted); cursor: not-allowed; }
-.exercise-picker-option input { width: 24px; height: 24px; accent-color: var(--brand); }
-.exercise-picker-option strong, .exercise-picker-option small { display: block; }
-.exercise-picker-option small { color: var(--muted); font-size: 0.8125rem; }
-.exercise-picker-actions { margin-top: 24px; }
-.training-current-plan { margin-bottom: 24px; }
-.training-current-plan ul, .training-template-items { padding-left: 20px; }
-.training-template-items li { padding: 12px 0; border-bottom: 1px solid var(--ui-line-soft); }
-.training-template-items p { margin-top: 6px; }
-.training-instructions { white-space: pre-wrap; overflow-wrap: anywhere; }
-.training-picker .page-heading h1 { font-size: 1.625rem; }
-.training-picker .exercise-picker-module { border-radius: 8px; }
-.training-picker summary span { min-width: 0; overflow-wrap: anywhere; }
-.training-picker .exercise-picker-module summary { min-height: 48px; }
-.exercise-picker-actions .command { width: 100%; min-height: 60px; border-radius: 10px; font-size: 1.125rem; }
+/* ==========================================================================
+   Patient Rehabilitation Plan Selection Redesign
+   ========================================================================== */
+.training-picker-container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+.plan-picker-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  margin-bottom: 24px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.plan-picker-alert .alert-icon {
+  flex-shrink: 0;
+  color: #D97706;
+  margin-top: 2px;
+}
+
+.plan-picker-alert .alert-content strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.plan-picker-alert .alert-content p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Active Plan Hero Card */
+.active-plan-section {
+  margin-bottom: 32px;
+}
+
+.active-plan-card {
+  background: var(--ui-surface);
+  border: 2px solid #C8E6C9;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 4px 16px rgba(19, 124, 75, 0.07);
+}
+
+.active-plan-header {
+  margin-bottom: 16px;
+}
+
+.active-plan-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.active-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: #E8F5E9;
+  color: #1B4D3E;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  border: 1px solid #C8E6C9;
+}
+
+.active-plan-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 6px 0 8px;
+  line-height: 1.35;
+}
+
+.active-plan-notice {
+  font-size: 0.8125rem;
+  color: #D97706;
+  margin: 0 0 8px;
+}
+
+.active-plan-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.active-plan-summary-bar strong {
+  color: var(--ink);
+}
+
+.active-plan-summary-bar .dot-divider {
+  color: var(--ui-line-soft);
+}
+
+.active-plan-exercises-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.active-plan-exercise-chip {
+  background: var(--ui-soft);
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.active-plan-exercise-chip .chip-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.active-plan-exercise-chip .chip-exercise-name {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.active-plan-exercise-chip .chip-module-tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--ui-primary-dark);
+  background: var(--ui-primary-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.active-plan-exercise-chip .chip-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.active-plan-exercise-chip .chip-pill {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line-soft);
+  color: var(--muted);
+}
+
+.active-plan-exercise-chip .chip-pill.side {
+  color: var(--ui-primary-dark);
+  font-weight: 600;
+}
+
+/* Plan Selection Section */
+.plan-selection-section {
+  margin-top: 12px;
+}
+
+.plan-selection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.plan-selection-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.plan-selection-header .section-subtext {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+.plan-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--ui-soft);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Search Box */
+.plan-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.plan-search-wrapper .search-icon {
+  position: absolute;
+  left: 18px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.plan-search-wrapper .plan-search-input {
+  width: 100%;
+  height: 52px;
+  padding: 0 46px 0 52px !important;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--ui-surface);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.18s ease;
+}
+
+.plan-search-wrapper .plan-search-input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(19, 124, 75, 0.14);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: var(--ui-soft);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  background: var(--ui-line);
+  color: var(--ink);
+}
+
+/* Plan Cards Grid */
+.plan-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plan-template-card {
+  background: var(--ui-surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.plan-template-card:hover {
+  border-color: #A5D6A7;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.plan-template-card.selected {
+  border-color: var(--brand);
+  box-shadow: 0 4px 18px rgba(19, 124, 75, 0.13);
+}
+
+.plan-template-card.current-active {
+  border-left: 5px solid var(--brand);
+}
+
+.plan-card-top {
+  padding: 20px 22px 16px;
+}
+
+.plan-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.badge-current-plan {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  color: #1B4D3E;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--ui-soft);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--ui-soft);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.plan-card-header-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.plan-card-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plan-card-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.plan-card-desc {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.plan-card-action {
+  flex-shrink: 0;
+}
+
+.plan-select-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--ui-soft);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+}
+
+.plan-select-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--ui-primary-soft);
+}
+
+.plan-select-btn.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(19, 124, 75, 0.25);
+}
+
+.plan-select-btn.current {
+  background: #E8F5E9;
+  border-color: #C8E6C9;
+  color: #1B4D3E;
+  cursor: default;
+}
+
+/* Accordion for previewing exercises */
+.plan-card-details {
+  border-top: 1px solid var(--ui-line-soft);
+}
+
+.plan-card-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 22px;
+  background: var(--ui-soft);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+  transition: background 0.15s ease;
+}
+
+.plan-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.plan-card-summary:hover {
+  background: var(--ui-line-soft);
+}
+
+.plan-card-summary svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: var(--muted);
+}
+
+.plan-card-details[open] .plan-card-summary svg {
+  transform: rotate(180deg);
+}
+
+.plan-card-body {
+  padding: 16px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.template-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.template-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line-soft);
+  border-radius: 10px;
+}
+
+.template-item-main {
+  flex: 1 1 auto;
+}
+
+.template-item-main .item-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.template-item-main .item-details-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.template-item-main .item-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--ui-soft);
+  border: 1px solid var(--ui-line-soft);
+  color: var(--muted);
+}
+
+.template-item-main .item-badge.side {
+  color: var(--ui-primary-dark);
+  font-weight: 600;
+}
+
+.template-item-main .item-instructions {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 6px 0 0;
+  line-height: 1.45;
+}
+
+/* Camera Test Settings Box */
+.camera-test-settings-box {
+  margin-top: 8px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #F0FDF4;
+  border: 1.5px solid #BBF7D0;
+}
+
+.settings-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: #166534;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.settings-box-header strong {
+  font-weight: 700;
+}
+
+.settings-module-tag {
+  font-size: 0.75rem;
+  color: #15803D;
+  background: #DCFCE7;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: auto;
+}
+
+.settings-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #166534;
+}
+
+.settings-field input,
+.settings-field select {
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #86EFAC;
+  background: #fff;
+  font-size: 0.875rem;
+  color: #0F172A;
+}
+
+.settings-field input:focus,
+.settings-field select:focus {
+  outline: none;
+  border-color: #22C55E;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+/* Action Card Confirmation at bottom of list */
+.plan-picker-action-card {
+  margin-top: 28px;
+  background: var(--ui-surface);
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 26px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  transition: all 0.2s ease;
+}
+
+.plan-picker-action-card.has-selection {
+  border-color: #A5D6A7;
+  background: linear-gradient(135deg, var(--ui-surface) 60%, #F0FDF4 100%);
+  box-shadow: 0 6px 20px rgba(19, 124, 75, 0.08);
+}
+
+.action-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.action-card-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.action-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.action-card-desc {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.save-plan-button {
+  min-height: 48px;
+  padding: 0 26px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.plan-picker-error {
+  margin: 16px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .plan-card-header-main {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .plan-select-btn {
+    width: 100%;
+  }
+  .settings-controls-grid {
+    grid-template-columns: 1fr;
+  }
+  .plan-picker-action-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px 16px;
+    gap: 16px;
+  }
+  .save-plan-button {
+    width: 100%;
+  }
+}
+
+/* Dark mode support */
+html[data-theme="dark"] .plan-picker-alert {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #FCD34D;
+}
+
+html[data-theme="dark"] .plan-picker-alert .alert-icon {
+  color: #FBBF24;
+}
+
+html[data-theme="dark"] .active-plan-card {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: #12212B;
+}
+
+html[data-theme="dark"] .active-status-badge {
+  background: rgba(27, 77, 62, 0.4);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #6EE7B7;
+}
+
+html[data-theme="dark"] .active-plan-exercise-chip {
+  background: #172B37;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .plan-template-card.selected {
+  border-color: var(--brand);
+  background: #132430;
+}
+
+html[data-theme="dark"] .badge-current-plan {
+  background: rgba(27, 77, 62, 0.4);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #6EE7B7;
+}
+
+html[data-theme="dark"] .camera-test-settings-box {
+  background: rgba(27, 77, 62, 0.25);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+html[data-theme="dark"] .settings-box-header,
+html[data-theme="dark"] .settings-field {
+  color: #6EE7B7;
+}
+
+html[data-theme="dark"] .settings-field input,
+html[data-theme="dark"] .settings-field select {
+  background: #0E1B24;
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #E7F0F5;
+}
+
+html[data-theme="dark"] .plan-picker-action-card {
+  background: #12212B;
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .plan-picker-action-card.has-selection {
+  background: linear-gradient(135deg, #12212B 60%, rgba(19, 124, 75, 0.2) 100%);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+html[data-theme="dark"] .plan-select-btn.current {
+  background: rgba(27, 77, 62, 0.4);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #6EE7B7;
+}
+
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .exercise-item ul { margin-top: 16px; }
 .exercise-item li { padding: 8px 0; border-bottom: 1px solid var(--line); }
